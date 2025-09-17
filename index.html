@@ -384,6 +384,37 @@
             background-color: #e64a19;
         }
 
+        .calendar-navigation {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 20px;
+            margin: 20px 0;
+        }
+
+        .calendar-nav-btn {
+            background-color: var(--surface-light);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.3s;
+        }
+
+        .calendar-nav-btn:hover {
+            background-color: var(--primary);
+        }
+
+        .calendar-month-label {
+            min-width: 150px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--text);
+        }
+
         /* No Results */
         .no-results {
             text-align: center;
@@ -452,6 +483,14 @@
             .calendar-day {
                 min-height: 80px;
                 padding: 5px;
+            }
+
+            .calendar-navigation {
+                font-size: 16px;
+            }
+
+            .calendar-nav-btn {
+                padding: 6px 12px;
             }
         }
 
@@ -527,6 +566,13 @@
                         </select>
                     </div>
                     <div class="filter-group">
+                        <label class="filter-label">オーガナイザー</label>
+                        <select class="filter-select" id="organizer-filter">
+                            <option value="">すべて</option>
+                            <option value="ASHITAKA">ASHITAKA</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
                         <label class="filter-label">キーワード検索</label>
                         <input type="text" class="filter-input" id="keyword-filter" placeholder="イベント名、会場名で検索">
                     </div>
@@ -560,6 +606,11 @@
 
                 <!-- カレンダー表示 -->
                 <div class="calendar-view" id="calendar-view">
+                    <div class="calendar-navigation">
+                        <button class="calendar-nav-btn" onclick="changeMonth(-1)">◀</button>
+                        <span class="calendar-month-label" id="calendar-month-label">2025年1月</span>
+                        <button class="calendar-nav-btn" onclick="changeMonth(1)">▶</button>
+                    </div>
                     <div class="calendar-grid" id="calendar-grid"></div>
                 </div>
             </section>
@@ -574,6 +625,7 @@
         let allEvents = [];
         let filteredEvents = [];
         let currentView = 'list';
+        let currentCalendarDate = new Date();
 
         // 初期化
         window.addEventListener('DOMContentLoaded', async () => {
@@ -598,7 +650,7 @@
             });
 
             // フィルターの自動適用
-            ['region-filter', 'prefecture-filter', 'content-filter', 'show-past-events'].forEach(id => {
+            ['region-filter', 'prefecture-filter', 'content-filter', 'organizer-filter', 'show-past-events'].forEach(id => {
                 document.getElementById(id).addEventListener('change', applyFilters);
             });
         }
@@ -678,6 +730,7 @@
             const region = document.getElementById('region-filter').value;
             const prefecture = document.getElementById('prefecture-filter').value;
             const content = document.getElementById('content-filter').value;
+            const organizer = document.getElementById('organizer-filter').value;
             const keyword = document.getElementById('keyword-filter').value.toLowerCase();
             const showPastEvents = document.getElementById('show-past-events').checked;
 
@@ -688,6 +741,7 @@
                 const matchRegion = !region || event.region === region;
                 const matchPrefecture = !prefecture || event.prefecture === prefecture;
                 const matchContent = !content || event.mainContent === content;
+                const matchOrganizer = !organizer || event.organizer === organizer;
                 const matchKeyword = !keyword ||
                     event.name.toLowerCase().includes(keyword) ||
                     event.venue.toLowerCase().includes(keyword) ||
@@ -700,7 +754,7 @@
                     matchDate = eventDate >= today;
                 }
 
-                return matchRegion && matchPrefecture && matchContent && matchKeyword && matchDate;
+                return matchRegion && matchPrefecture && matchContent && matchOrganizer && matchKeyword && matchDate;
             });
 
             displayEvents();
@@ -711,6 +765,7 @@
             document.getElementById('region-filter').value = '';
             document.getElementById('prefecture-filter').value = '';
             document.getElementById('content-filter').value = '';
+            document.getElementById('organizer-filter').value = '';
             document.getElementById('keyword-filter').value = '';
             document.getElementById('show-past-events').checked = false;
 
@@ -782,12 +837,33 @@
             }
         }
 
+        // カレンダーの月を変更
+        function changeMonth(direction) {
+            const newDate = new Date(currentCalendarDate);
+            newDate.setMonth(newDate.getMonth() + direction);
+
+            // 前後1年の範囲制限
+            const now = new Date();
+            const minDate = new Date(now.getFullYear() - 1, now.getMonth(), 1);
+            const maxDate = new Date(now.getFullYear() + 1, now.getMonth() + 1, 0);
+
+            if (newDate >= minDate && newDate <= maxDate) {
+                currentCalendarDate = newDate;
+                displayEventsCalendar();
+            }
+        }
+
         // カレンダー表示
         function displayEventsCalendar() {
             const calendarGrid = document.getElementById('calendar-grid');
-            const today = new Date();
-            const year = today.getFullYear();
-            const month = today.getMonth();
+            const year = currentCalendarDate.getFullYear();
+            const month = currentCalendarDate.getMonth();
+
+            // 月ラベルを更新
+            const monthLabel = document.getElementById('calendar-month-label');
+            if (monthLabel) {
+                monthLabel.textContent = `${year}年${month + 1}月`;
+            }
 
             // カレンダーのヘッダー
             const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
