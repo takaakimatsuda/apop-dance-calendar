@@ -89,10 +89,11 @@
             background-color: var(--surface);
             border-radius: 12px;
             padding: 20px;
-            margin: 20px 0;
+            margin: 20px auto;
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            grid-template-columns: repeat(2, 1fr);
             gap: 20px;
+            max-width: 600px;
         }
 
         .stat-item {
@@ -539,10 +540,6 @@
                     <span class="stat-number" id="upcoming-events">-</span>
                     <div class="stat-label">開催予定</div>
                 </div>
-                <div class="stat-item">
-                    <span class="stat-number" id="last-updated">-</span>
-                    <div class="stat-label">最終更新</div>
-                </div>
             </section>
 
             <!-- フィルター -->
@@ -618,6 +615,30 @@
         </div>
     </main>
 
+    <!-- フッター追加 -->
+    <footer style="background-color: var(--surface); border-top: 1px solid var(--border); padding: 20px 0; margin-top: 40px;">
+        <div class="container" style="text-align: center; color: var(--text-secondary); font-size: 14px;">
+            <p style="margin-bottom: 12px;">
+                📊 データ元:
+                <a href="https://docs.google.com/spreadsheets/d/1Ifvwzuf4UtZMoo-5ycwT1pxS1-PAqyjgm_t40BiFHgQ/"
+                   target="_blank"
+                   style="color: var(--primary); text-decoration: none;">
+                   APOPイベント管理シート
+                </a>
+            </p>
+            <div style="font-size: 12px; opacity: 0.8; line-height: 1.6; max-width: 800px; margin: 0 auto;">
+                <p style="margin-bottom: 8px;">
+                    ※ イベント情報は随時更新されます。最新情報は各イベント主催者のSNSをご確認ください。
+                </p>
+                <p style="margin-bottom: 0; padding-top: 8px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    【免責事項】本サイトは個人が運営する非営利の情報共有サイトです。
+                    掲載情報の正確性には努めておりますが、日時・内容の変更、イベントの中止等については責任を負いかねます。
+                    参加される際は必ず主催者の公式情報をご確認ください。
+                </p>
+            </div>
+        </div>
+    </footer>
+
     <script>
         // 定数
         const API_URL = 'https://script.google.com/macros/s/AKfycbzfgpo0Yp6rgYVvaxdoDGh9BcD2LPV5g616VkN1kbBbhlYcOdn3TiPMFFhPG5UsIea8/exec';
@@ -685,14 +706,6 @@
             if (stats) {
                 document.getElementById('total-events').textContent = stats.total || allEvents.length;
                 document.getElementById('upcoming-events').textContent = stats.upcoming || allEvents.length;
-
-                if (stats.lastUpdated) {
-                    const date = new Date(stats.lastUpdated);
-                    document.getElementById('last-updated').textContent =
-                        `${date.getMonth() + 1}/${date.getDate()}`;
-                } else {
-                    document.getElementById('last-updated').textContent = '今日';
-                }
             }
         }
 
