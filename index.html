@@ -612,11 +612,10 @@
 
                 if (data.success) {
                     allEvents = data.events || [];
-                    filteredEvents = [...allEvents];
 
                     updateStats(data.stats);
                     populateFilters();
-                    displayEvents();
+                    applyFilters();
                     showLoading(false);
                 } else {
                     throw new Error('APIからのデータ取得に失敗しました');
