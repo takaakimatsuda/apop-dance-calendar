@@ -1,0 +1,76 @@
+{
+  "project": {
+    "name": "APOP Dance Calendar",
+    "description": "全国のAPOPダンスイベントを検索・表示するWebアプリケーション",
+    "type": "static-website",
+    "language": "html/css/javascript"
+  },
+  "architecture": {
+    "frontend": "Vanilla JavaScript (No Framework)",
+    "backend": "Google Apps Script API",
+    "database": "Google Sheets",
+    "hosting": "GitHub Pages"
+  },
+  "api": {
+    "endpoint": "https://script.google.com/macros/s/AKfycbyrEf6OcAGDCChidPUI4yUOcKqmDHrJk9P9M1kyvJ4yh7WfI6QcdEA1Tk4jZFm8SSPL/exec",
+    "method": "GET",
+    "response_format": "JSON",
+    "cors": "enabled"
+  },
+  "data_structure": {
+    "event": {
+      "date": "表示用日付（例: 9/13(土)）",
+      "eventDate": "ISO形式日付（例: 2025-09-13）",
+      "name": "イベント名",
+      "prefecture": "都道府県",
+      "venue": "会場名",
+      "mainContent": "メインコンテンツ",
+      "subContent": "サブコンテンツ",
+      "status": "エントリー状況",
+      "twitter": "X(Twitter)URL",
+      "region": "地域（関東、関西など）"
+    }
+  },
+  "design": {
+    "theme": "dark",
+    "primary_color": "#FF5722",
+    "secondary_color": "#FFC107",
+    "background_color": "#0a0a0a",
+    "font_family": "Noto Sans JP",
+    "responsive": true
+  },
+  "features": {
+    "implemented": [
+      "イベント一覧表示",
+      "検索フィルター（地域、都道府県、コンテンツ、キーワード）",
+      "レスポンシブデザイン",
+      "統計表示"
+    ],
+    "planned": [
+      "カレンダービュー",
+      "お気に入り機能",
+      "イベント詳細モーダル",
+      "フライヤー画像表示"
+    ]
+  },
+  "development": {
+    "local_server": "Live Server extension or file:// protocol",
+    "version_control": "git",
+    "deployment": "git push to main branch triggers GitHub Pages",
+    "browser_support": ["Chrome", "Safari", "Firefox", "Edge"]
+  },
+  "coding_standards": {
+    "html": "HTML5, semantic elements",
+    "css": "Inline styles in <style> tag, no external files",
+    "javascript": "ES6+, async/await, no external libraries",
+    "no_dependencies": true,
+    "single_file": true
+  },
+  "important_notes": [
+    "すべてのコードはindex.html内に含める（単一ファイル）",
+    "外部ライブラリは使用しない（jQuery, React等は不要）",
+    "APIのURLは変更しない",
+    "日本語UIを使用",
+    "エラーハンドリングを適切に行う"
+  ]
+}
