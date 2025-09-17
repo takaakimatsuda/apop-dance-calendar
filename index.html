@@ -84,35 +84,6 @@
             color: var(--text);
         }
 
-        /* Stats */
-        .stats {
-            background-color: var(--surface);
-            border-radius: 12px;
-            padding: 20px;
-            margin: 20px auto;
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 20px;
-            max-width: 600px;
-        }
-
-        .stat-item {
-            text-align: center;
-        }
-
-        .stat-number {
-            font-size: 32px;
-            font-weight: 700;
-            color: var(--primary);
-            display: block;
-        }
-
-        .stat-label {
-            font-size: 14px;
-            color: var(--text-secondary);
-            margin-top: 5px;
-        }
-
         /* Filters */
         .filters {
             background-color: var(--surface);
@@ -458,10 +429,6 @@
                 margin: 0 auto;
             }
 
-            .stats {
-                grid-template-columns: repeat(2, 1fr);
-            }
-
             .filter-grid {
                 grid-template-columns: 1fr;
             }
@@ -497,14 +464,6 @@
         }
 
         @media (max-width: 480px) {
-            .stats {
-                grid-template-columns: 1fr;
-            }
-
-            .stat-number {
-                font-size: 24px;
-            }
-
             .event-card {
                 padding: 15px;
             }
@@ -530,18 +489,6 @@
 
     <main>
         <div class="container">
-            <!-- 統計情報 -->
-            <section class="stats">
-                <div class="stat-item">
-                    <span class="stat-number" id="total-events">-</span>
-                    <div class="stat-label">総イベント数</div>
-                </div>
-                <div class="stat-item">
-                    <span class="stat-number" id="upcoming-events">-</span>
-                    <div class="stat-label">開催予定</div>
-                </div>
-            </section>
-
             <!-- フィルター -->
             <section class="filters">
                 <div class="filter-grid">
@@ -687,7 +634,6 @@
                 if (data.success) {
                     allEvents = data.events || [];
 
-                    updateStats(data.stats);
                     populateFilters();
                     applyFilters();
                     showLoading(false);
@@ -698,14 +644,6 @@
                 console.error('エラー:', error);
                 showError('イベントデータの読み込みに失敗しました。しばらくしてから再度お試しください。');
                 showLoading(false);
-            }
-        }
-
-        // 統計情報の更新
-        function updateStats(stats) {
-            if (stats) {
-                document.getElementById('total-events').textContent = stats.total || allEvents.length;
-                document.getElementById('upcoming-events').textContent = stats.upcoming || allEvents.length;
             }
         }
 
