@@ -1,138 +1,78 @@
-APOP Dance Calendar 🔥
-全国のAPOPダンスイベントを検索・表示するWebアプリケーション
+# APOP Dance Calendar 📅
 
-🌐 Live Site
-https://takaakimatsuda.github.io/apop-dance-calendar/
+全国のAPOPダンスイベント情報を一元管理・検索できるWebアプリケーション
 
-📋 概要
-このプロジェクトは、日本全国のAPOPダンスイベント情報を一元管理し、ダンサーが簡単にイベントを探せるプラットフォームです。
+🔗 **Live Demo**: [https://apop-dance.netlify.app/](https://apop-dance.netlify.app/)
 
-🛠 技術スタック
-Frontend: HTML5, CSS3, Vanilla JavaScript
-Backend: Google Apps Script
-Database: Google Sheets
-Hosting: GitHub Pages
-🎯 Claude/AI開発者向けガイドライン
-プロジェクトの制約
-単一ファイル構成: すべてのコードは index.html に含める
-外部依存なし: jQuery, React等のライブラリは使用しない
-Pure JavaScript: ES6+の機能は使用可、TypeScriptは不使用
-レスポンシブ必須: モバイルファーストで設計
-API仕様
-javascript
-// エンドポイント
-const API_URL = 'https://script.google.com/macros/s/AKfycbyrEf6OcAGDCChidPUI4yUOcKqmDHrJk9P9M1kyvJ4yh7WfI6QcdEA1Tk4jZFm8SSPL/exec';
+## 📌 概要
 
-// レスポンス形式
+APOP Dance Calendarは、APOPダンスイベント情報を効率的に管理・閲覧できるシングルページアプリケーションです。Googleスプレッドシートをデータソースとし、リアルタイムで最新情報を提供します。
+
+## ✨ 主な機能
+
+### 表示モード
+- **リスト表示**: カード形式でイベントを一覧表示
+- **カレンダー表示**: 月間カレンダーでイベントを視覚的に確認
+- **月切り替え機能**: 前後1年分のイベントを月単位で閲覧可能
+
+### フィルター機能
+- **地域フィルター**: 北海道から九州まで地域別に絞り込み
+- **都道府県フィルター**: 都道府県単位での検索
+- **コンテンツ種別フィルター**: イベントのメインコンテンツで分類
+- **オーガナイザーフィルター**: 主催者（ASHITAKA等）での絞り込み
+- **キーワード検索**: イベント名、会場名での自由検索
+- **過去イベント表示**: デフォルトでは非表示、チェックで表示切り替え
+
+### その他の特徴
+- **レスポンシブデザイン**: PC、タブレット、スマートフォンに完全対応
+- **ダークテーマ**: 目に優しいダークモードUI
+- **URL検証機能**: 無効なURLへの遷移を防止
+- **リアルタイム更新**: Googleスプレッドシートの変更が即座に反映
+
+## 🏗️ 技術構成
+
+### フロントエンド
+- **HTML/CSS/JavaScript**: 単一ファイル構成（index.html）
+- **フレームワーク不使用**: 純粋なVanilla JSで実装
+- **レスポンシブ対応**: CSS Grid/Flexboxを活用
+
+### バックエンド
+- **Google Apps Script**: スプレッドシートデータをJSON APIとして配信
+- **CORS対応**: 通常のJSON形式とJSONP形式の両方をサポート
+
+### データソース
+- **Googleスプレッドシート**: イベント情報の管理
+- **自動日付処理**: 月/日のみの入力で年を自動判定
+
+### ホスティング
+- **Netlify**: メインホスティング（自動デプロイ設定済み）
+- **GitHub Pages**: バックアップホスティング
+
+## 📊 データ構造
+
+### イベントデータ
+```javascript
 {
-  "success": true,
-  "stats": {
-    "total": 27,
-    "upcoming": 23,
-    "lastUpdated": "2025-01-17T..."
-  },
-  "events": [
-    {
-      "date": "9/13(土)",
-      "eventDate": "2025-09-13",
-      "name": "マニアブル",
-      "prefecture": "大阪",
-      "venue": "レッドカーペット",
-      "mainContent": "アニソンソロ",
-      "subContent": "シャッフル3on3",
-      "status": "エントリー中",
-      "twitter": "https://x.com/...",
-      "region": "関西"
-    }
-  ]
+  date: "9/13(土)",           // 日時
+  eventDate: "2025-09-13",    // ISO形式の日付
+  name: "イベント名",
+  prefecture: "東京",
+  venue: "会場名",
+  mainContent: "メインコンテンツ",
+  subContent: "サブコンテンツ",
+  status: "エントリー中",
+  twitter: "https://...",      // イベントURL
+  organizer: "ASHITAKA",       // 主催者
+  region: "関東"              // 地域（自動判定）
 }
-デザインシステム
-css
-/* カラーパレット */
---primary: #FF5722;    /* オレンジレッド */
---secondary: #FFC107;  /* アンバー */
---background: #0a0a0a; /* ダークグレー */
---surface: #1a1a1a;   /* ライトグレー */
---text: #ffffff;      /* ホワイト */
-コーディング規則
-命名規則: camelCase for JavaScript, kebab-case for CSS
-インデント: 2スペース
-コメント: 日本語OK、重要な処理には必ずコメント
-エラー処理: try-catch でAPIエラーをハンドリング
-機能実装の優先順位
-✅ イベント一覧表示
-✅ 検索・フィルター機能
-✅ レスポンシブデザイン
-✅ 統計情報表示
-🚧 カレンダービュー
-📋 お気に入り機能
-📋 イベント詳細モーダル
-よくある実装パターン
-イベントカードのHTML構造
-html
-<div class="event-card">
-  <div class="event-header">
-    <div class="event-date">📅 日付</div>
-    <div class="event-title">イベント名</div>
-    <div class="event-location">📍 場所</div>
-  </div>
-  <div class="event-body">
-    <div class="event-content">
-      <div class="content-label">メインコンテンツ</div>
-      <div class="content-value">内容</div>
-    </div>
-    <div class="event-status">ステータス</div>
-    <a class="event-link">イベントURL</a>
-  </div>
-</div>
-データフィルタリング例
-javascript
-const filtered = allEvents.filter(event => {
-  const matchRegion = !region || event.region === region;
-  const matchPrefecture = !prefecture ||
-    event.prefecture.toLowerCase().includes(prefecture);
-  const matchContent = !content ||
-    event.mainContent.toLowerCase().includes(content);
-  return matchRegion && matchPrefecture && matchContent;
-});
-🚀 開発環境セットアップ
-bash
-# リポジトリをクローン
-git clone git@github.com:takaakimatsuda/apop-dance-calendar.git
+```
 
-# VS Codeで開く
-cd apop-dance-calendar
-code .
+## ⚠️ 注意事項
 
-# Live Serverで確認（VS Code拡張）
-# index.htmlを右クリック → "Open with Live Server"
-📝 Git操作
-bash
-# 変更をコミット
-git add .
-git commit -m "Update: 機能の説明"
-git push origin main
+- イベント情報は随時更新されます
+- 最新情報は各イベント主催者のSNSをご確認ください
+- 本サイトは個人運営の非営利情報共有サイトです
 
-# 1-2分後にGitHub Pagesで確認
-🐛 トラブルシューティング
-APIからデータが取得できない
-ブラウザのコンソールでエラーを確認
-API URLが正しいか確認
-CORSエラーの場合はGoogle Apps Script側の設定を確認
-スタイルが反映されない
-ブラウザのキャッシュをクリア（Ctrl+Shift+R）
-CSS の specificity を確認
-📧 連絡先
-GitHub: @takaakimatsuda
-プロジェクト管理者: [名前]
-For Claude/AI Assistants 🤖
-このセクションを読んでいる場合、以下の点に注意してください：
+## 📄 ライセンス
 
-コード生成時は必ず単一のindex.htmlファイルにすべてを含める
-APIのURLは絶対に変更しない
-日本語のコメントとUIを使用する
-エラーメッセージも日本語で表示
-新機能追加時は既存の設計パターンに従う
-パフォーマンスよりも可読性を優先
-ブラウザ互換性を考慮（IE以外のモダンブラウザ対応）
-頑張ってください！良いコードを書いてくださいね。🚀
+MIT License
