@@ -682,7 +682,8 @@
             const keyword = document.getElementById('keyword-filter').value.toLowerCase();
             const showPastEvents = document.getElementById('show-past-events').checked;
 
-            const today = new Date('2025-09-17');
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
 
             filteredEvents = allEvents.filter(event => {
                 const matchRegion = !region || event.region === region;
