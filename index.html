@@ -754,7 +754,7 @@
             const statusClass = getStatusClass(event.status);
 
             return `
-                <div class="event-card" onclick="openEventLink('${event.twitter}')">
+                <div class="event-card" ${isValidUrl(event.twitter) ? `onclick="openEventLink('${event.twitter}')"` : ''}>
                     <div class="event-header">
                         <div class="event-date">📅 ${event.date}</div>
                         <div class="event-title">${event.name}</div>
@@ -772,7 +772,7 @@
                             </div>
                         </div>
                         <div class="event-status ${statusClass}">${event.status}</div>
-                        ${event.twitter ? `<a class="event-link" href="${event.twitter}" target="_blank" onclick="event.stopPropagation()">イベントURL</a>` : ''}
+                        ${isValidUrl(event.twitter) ? `<a class="event-link" href="${event.twitter}" target="_blank" onclick="event.stopPropagation()">イベントURL</a>` : ''}
                     </div>
                 </div>
             `;
@@ -848,7 +848,9 @@
                     <div class="calendar-day" style="opacity: ${isCurrentMonth ? 1 : 0.3}">
                         <div class="calendar-day-number">${date.getDate()}</div>
                         ${dayEvents.map(event =>
-                            `<div class="calendar-event" onclick="openEventLink('${event.twitter}')" title="${event.name} - ${event.venue}">
+                            `<div class="calendar-event" ${isValidUrl(event.twitter) ? `onclick="openEventLink('${event.twitter}')"` : ''}
+                                 title="${event.name} - ${event.venue}"
+                                 style="${!isValidUrl(event.twitter) ? 'cursor: default;' : ''}">
                                 ${event.name}
                             </div>`
                         ).join('')}
@@ -876,9 +878,25 @@
             displayEvents();
         }
 
+        // URLが有効か判定する関数
+        function isValidUrl(string) {
+            if (!string || string === '-' || string === '') return false;
+            try {
+                const url = new URL(string);
+                return url.protocol === 'http:' || url.protocol === 'https:';
+            } catch (_) {
+                // 相対URLやTwitterハンドルなどの場合
+                // https://で始まるか、http://で始まるか、twitter.comを含むかチェック
+                return string.startsWith('http://') ||
+                       string.startsWith('https://') ||
+                       string.includes('twitter.com') ||
+                       string.includes('x.com');
+            }
+        }
+
         // イベントリンクを開く
         function openEventLink(url) {
-            if (url && url !== '-') {
+            if (isValidUrl(url)) {
                 window.open(url, '_blank');
             }
         }
