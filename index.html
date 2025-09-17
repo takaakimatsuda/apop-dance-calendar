@@ -195,14 +195,48 @@
             background-color: var(--surface);
             border-radius: 12px;
             padding: 20px;
-            border-left: 4px solid var(--primary);
             transition: all 0.3s;
-            cursor: pointer;
         }
 
         .event-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 25px rgba(255, 87, 34, 0.2);
+        }
+
+        /* URL有無によるカードスタイル */
+        .event-card.has-url {
+            border-left: 4px solid var(--primary);
+            cursor: pointer;
+            position: relative;
+        }
+
+        .event-card.no-url {
+            border-left: 4px solid var(--border);
+            cursor: default;
+        }
+
+        .event-card.no-url:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
+        /* URL有無インジケーター */
+        .url-indicator {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 16px;
+            color: var(--primary);
+        }
+
+        .no-url-badge {
+            display: inline-block;
+            padding: 4px 8px;
+            background-color: var(--surface-light);
+            color: var(--text-secondary);
+            border-radius: 4px;
+            font-size: 11px;
+            margin-top: 8px;
         }
 
         .event-header {
@@ -752,9 +786,12 @@
         // イベントカードを作成
         function createEventCard(event) {
             const statusClass = getStatusClass(event.status);
+            const hasUrl = isValidUrl(event.twitter);
+            const cardClass = hasUrl ? 'has-url' : 'no-url';
 
             return `
-                <div class="event-card" ${isValidUrl(event.twitter) ? `onclick="openEventLink('${event.twitter}')"` : ''}>
+                <div class="event-card ${cardClass}" ${hasUrl ? `onclick="openEventLink('${event.twitter}')"` : ''}>
+                    ${hasUrl ? '<span class="url-indicator">↗</span>' : ''}
                     <div class="event-header">
                         <div class="event-date">📅 ${event.date}</div>
                         <div class="event-title">${event.name}</div>
@@ -772,7 +809,7 @@
                             </div>
                         </div>
                         <div class="event-status ${statusClass}">${event.status}</div>
-                        ${isValidUrl(event.twitter) ? `<a class="event-link" href="${event.twitter}" target="_blank" onclick="event.stopPropagation()">イベントURL</a>` : ''}
+                        ${!hasUrl ? '<span class="no-url-badge">詳細URLなし</span>' : ''}
                     </div>
                 </div>
             `;
@@ -848,9 +885,10 @@
                     <div class="calendar-day" style="opacity: ${isCurrentMonth ? 1 : 0.3}">
                         <div class="calendar-day-number">${date.getDate()}</div>
                         ${dayEvents.map(event =>
-                            `<div class="calendar-event" ${isValidUrl(event.twitter) ? `onclick="openEventLink('${event.twitter}')"` : ''}
+                            `<div class="calendar-event ${!isValidUrl(event.twitter) ? 'no-url' : ''}"
+                                 ${isValidUrl(event.twitter) ? `onclick="openEventLink('${event.twitter}')"` : ''}
                                  title="${event.name} - ${event.venue}"
-                                 style="${!isValidUrl(event.twitter) ? 'cursor: default;' : ''}">
+                                 style="${!isValidUrl(event.twitter) ? 'cursor: default; opacity: 0.8;' : ''}">
                                 ${event.name}
                             </div>`
                         ).join('')}
