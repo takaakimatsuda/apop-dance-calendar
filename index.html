@@ -864,6 +864,7 @@
             const firstDay = new Date(year, month, 1);
             const lastDay = new Date(year, month + 1, 0);
             const startDate = new Date(firstDay);
+            // 月初の曜日分だけ前の日付に戻す（日曜始まりのカレンダー）
             startDate.setDate(startDate.getDate() - firstDay.getDay());
 
             // カレンダーの日付を生成
@@ -877,9 +878,13 @@
 
             // 各日付のセルを作成
             calendarDays.forEach(date => {
-                const dateStr = date.toISOString().split('T')[0];
+                // ローカル日付をYYYY-MM-DD形式に変換（toISOStringを使わない）
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const dateStr = `${year}-${month}-${day}`;
                 const dayEvents = filteredEvents.filter(event => event.eventDate === dateStr);
-                const isCurrentMonth = date.getMonth() === month;
+                const isCurrentMonth = date.getMonth() === currentCalendarDate.getMonth();
 
                 calendarHTML += `
                     <div class="calendar-day" style="opacity: ${isCurrentMonth ? 1 : 0.3}">
