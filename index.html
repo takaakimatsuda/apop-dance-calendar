@@ -556,6 +556,15 @@
                         </select>
                     </div>
                     <div class="filter-group">
+                        <label class="filter-label">イベント種別</label>
+                        <select class="filter-select" id="event-type-filter">
+                            <option value="">すべての種別</option>
+                            <option value="バトル">バトル</option>
+                            <option value="DJイベント">DJイベント</option>
+                            <option value="ショウケース">ショウケース</option>
+                        </select>
+                    </div>
+                    <div class="filter-group">
                         <label class="filter-label">オーガナイザー</label>
                         <select class="filter-select" id="organizer-filter">
                             <option value="">すべて</option>
@@ -649,6 +658,29 @@
         let currentView = 'list';
         let currentCalendarDate = new Date();
 
+        // イベント種別を判定する関数
+        function getEventTypes(mainContent, subContent) {
+            const combined = `${mainContent || ''} ${subContent || ''}`.toLowerCase();
+            const types = [];
+
+            // ショウケース判定（ショウケース、ショーケース両方に対応）
+            if (/ショウケース|ショーケース|しょうけーす/i.test(combined)) {
+                types.push('ショウケース');
+            }
+
+            // DJイベント判定
+            if (/dj|アニクラ|パーティー/i.test(combined)) {
+                types.push('DJイベント');
+            }
+
+            // バトルイベント判定
+            if (/\d+on\d+|ソロ|バトル|クルー|予選|決勝|全国大会/i.test(combined)) {
+                types.push('バトル');
+            }
+
+            return types.length > 0 ? types : ['その他'];
+        }
+
         // 初期化
         window.addEventListener('DOMContentLoaded', async () => {
             setupEventListeners();
@@ -672,7 +704,7 @@
             });
 
             // フィルターの自動適用
-            ['region-filter', 'prefecture-filter', 'content-filter', 'organizer-filter', 'show-past-events', 'date-start-filter', 'date-end-filter'].forEach(id => {
+            ['region-filter', 'prefecture-filter', 'content-filter', 'event-type-filter', 'organizer-filter', 'show-past-events', 'date-start-filter', 'date-end-filter'].forEach(id => {
                 document.getElementById(id).addEventListener('change', applyFilters);
             });
         }
@@ -685,7 +717,11 @@
                 const data = await response.json();
 
                 if (data.success) {
-                    allEvents = data.events || [];
+                    // イベントにtypesプロパティを追加
+                    allEvents = (data.events || []).map(event => ({
+                        ...event,
+                        types: getEventTypes(event.mainContent, event.subContent)
+                    }));
 
                     populateFilters();
                     applyFilters();
@@ -735,6 +771,7 @@
             const region = document.getElementById('region-filter').value;
             const prefecture = document.getElementById('prefecture-filter').value;
             const content = document.getElementById('content-filter').value;
+            const eventType = document.getElementById('event-type-filter').value;
             const organizer = document.getElementById('organizer-filter').value;
             const keyword = document.getElementById('keyword-filter').value.toLowerCase();
             const showPastEvents = document.getElementById('show-past-events').checked;
@@ -748,6 +785,7 @@
                 const matchRegion = !region || event.region === region;
                 const matchPrefecture = !prefecture || event.prefecture === prefecture;
                 const matchContent = !content || event.mainContent === content;
+                const matchEventType = !eventType || (event.types && event.types.includes(eventType));
                 const matchOrganizer = !organizer || event.organizer === organizer;
                 const matchKeyword = !keyword ||
                     event.name.toLowerCase().includes(keyword) ||
@@ -777,7 +815,7 @@
                     }
                 }
 
-                return matchRegion && matchPrefecture && matchContent && matchOrganizer && matchKeyword && matchDate && matchDateRange;
+                return matchRegion && matchPrefecture && matchContent && matchEventType && matchOrganizer && matchKeyword && matchDate && matchDateRange;
             });
 
             displayEvents();
@@ -788,6 +826,7 @@
             document.getElementById('region-filter').value = '';
             document.getElementById('prefecture-filter').value = '';
             document.getElementById('content-filter').value = '';
+            document.getElementById('event-type-filter').value = '';
             document.getElementById('organizer-filter').value = '';
             document.getElementById('keyword-filter').value = '';
             document.getElementById('date-start-filter').value = '';
