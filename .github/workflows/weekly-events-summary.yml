@@ -26,10 +26,14 @@ jobs:
       - name: 依存関係インストール
         run: npm install
 
-      - name: 週次イベントまとめを生成
+      - name: 週次イベントまとめを生成・メール送信
         run: npm run test:weekly
         env:
           TZ: Asia/Tokyo
+          # メール送信設定
+          GMAIL_USER: ${{ secrets.GMAIL_USER }}
+          GMAIL_APP_PASSWORD: ${{ secrets.GMAIL_APP_PASSWORD }}
+          RECIPIENT_EMAIL: ${{ secrets.RECIPIENT_EMAIL }}
           # X API キー（後で追加する場合）
           # TWITTER_API_KEY: ${{ secrets.TWITTER_API_KEY }}
           # TWITTER_API_SECRET: ${{ secrets.TWITTER_API_SECRET }}
