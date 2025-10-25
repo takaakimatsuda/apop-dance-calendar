@@ -1,0 +1,12 @@
+# Netlify デプロイ設定
+[build]
+  # ビルドコマンド（静的サイトなので不要）
+  command = "echo 'No build needed'"
+
+  # 公開ディレクトリ
+  publish = "."
+
+# デプロイ制御：index.html が変更された時だけビルド実行
+[build.ignore]
+  # index.html に変更がない場合はデプロイをスキップ
+  command = "git diff --quiet $CACHED_COMMIT_REF $COMMIT_REF index.html"
