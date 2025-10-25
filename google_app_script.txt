@@ -1,6 +1,6 @@
 // ===========================
 // APOP Dance Calendar - Google Apps Script
-// JSONP対応版（CORS問題解決）+ オーガナイザー情報追加版
+// JSONP対応版（CORS問題解決）+ オーガナイザー情報追加版 + 定期開催イベント展開機能
 // ===========================
 
 function doGet(e) {
@@ -13,7 +13,7 @@ function doGet(e) {
     // C列（イベント名）の文字色を取得
     const fontColors = dataRange.getFontColors();
 
-    const events = [];
+    let events = [];
 
     // 4行目から実際のイベントデータが始まる
     for (let i = 3; i < data.length; i++) {
@@ -36,9 +36,9 @@ function doGet(e) {
                     textColor.toLowerCase().includes('ff0000') ||
                     textColor.toLowerCase().includes('cc0000');
 
-      const event = {
+      const baseEvent = {
         date: row[1] || '',  // B列：日時
-        eventDate: parseEventDate(row[1]), // 日時から日付を生成
+        eventDate: '', // 後で設定
         name: row[2] || '',  // C列：イベント名
         prefecture: row[3] || '', // D列：都道府県
         venue: row[4] || '', // E列：会場
@@ -52,14 +52,16 @@ function doGet(e) {
         rowNumber: i + 1
       };
 
-      // 定期イベントの判定
-      if (event.date && event.date.includes('毎月')) {
-        event.isRecurring = true;
-        event.status = '定期開催';
-        event.eventDate = getNextRecurringDate(event.date);
+      // 定期イベントの判定と展開
+      if (isRecurringEvent(baseEvent.date)) {
+        const expandedEvents = expandRecurringEvent(baseEvent);
+        events = events.concat(expandedEvents);
+      } else {
+        // 通常のイベント
+        baseEvent.eventDate = parseEventDate(baseEvent.date);
+        baseEvent.isRecurring = false;
+        events.push(baseEvent);
       }
-
-      events.push(event);
     }
 
     // イベントを日付順にソート
@@ -73,6 +75,10 @@ function doGet(e) {
     const ashitakaEvents = events.filter(e => e.organizer === 'ASHITAKA');
     const otherEvents = events.filter(e => e.organizer === 'その他');
 
+    // 定期開催イベントの統計
+    const recurringEvents = events.filter(e => e.isRecurring);
+    const oneTimeEvents = events.filter(e => !e.isRecurring);
+
     const stats = {
       total: events.length,
       upcoming: events.filter(e => {
@@ -82,6 +88,10 @@ function doGet(e) {
       byOrganizer: {
         ASHITAKA: ashitakaEvents.length,
         その他: otherEvents.length
+      },
+      byType: {
+        recurring: recurringEvents.length,
+        oneTime: oneTimeEvents.length
       },
       lastUpdated: new Date().toISOString()
     };
@@ -129,6 +139,170 @@ function doGet(e) {
     }
   }
 }
+
+// ===========================
+// 定期開催イベント関連の関数
+// ===========================
+
+// 定期開催イベントかどうかを判定
+function isRecurringEvent(dateStr) {
+  if (!dateStr) return false;
+  const str = dateStr.toString();
+  return str.includes('毎月') || str.includes('毎週') || str.includes('定期');
+}
+
+// 定期開催イベントを実際の日付に展開
+function expandRecurringEvent(baseEvent) {
+  const dateStr = baseEvent.date.toString();
+  const expandedEvents = [];
+
+  // 展開する期間（前後1年）
+  const today = new Date();
+  const startDate = new Date(today.getFullYear() - 1, today.getMonth(), 1);
+  const endDate = new Date(today.getFullYear() + 1, today.getMonth() + 1, 0);
+
+  // 「毎月第4金曜」のようなパターンを解析
+  if (dateStr.match(/毎月第[1-5][日月火水木金土]曜/)) {
+    const weekMatch = dateStr.match(/第([1-5])/);
+    const dayMatch = dateStr.match(/([日月火水木金土])曜/);
+
+    if (weekMatch && dayMatch) {
+      const weekNum = parseInt(weekMatch[1]);
+      const dayOfWeek = getDayOfWeekNumber(dayMatch[1]);
+
+      if (dayOfWeek !== -1) {
+        // 各月の該当日を生成
+        for (let year = startDate.getFullYear(); year <= endDate.getFullYear(); year++) {
+          const startMonth = (year === startDate.getFullYear()) ? startDate.getMonth() : 0;
+          const endMonth = (year === endDate.getFullYear()) ? endDate.getMonth() : 11;
+
+          for (let month = startMonth; month <= endMonth; month++) {
+            const nthDay = getNthWeekday(year, month, dayOfWeek, weekNum);
+            if (nthDay) {
+              const eventCopy = Object.assign({}, baseEvent);
+              eventCopy.date = formatDateJapanese(nthDay);
+              eventCopy.eventDate = formatISODate(nthDay);
+              eventCopy.isRecurring = true;
+              eventCopy.recurringPattern = dateStr;
+              eventCopy.id = `${baseEvent.id}_${formatISODate(nthDay)}`;
+              expandedEvents.push(eventCopy);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // 「毎週金曜」のようなパターン
+  else if (dateStr.match(/毎週[日月火水木金土]曜/)) {
+    const dayMatch = dateStr.match(/([日月火水木金土])曜/);
+
+    if (dayMatch) {
+      const targetDayOfWeek = getDayOfWeekNumber(dayMatch[1]);
+
+      if (targetDayOfWeek !== -1) {
+        // 期間内の全ての該当曜日を生成
+        const current = new Date(startDate);
+        while (current <= endDate) {
+          if (current.getDay() === targetDayOfWeek) {
+            const eventCopy = Object.assign({}, baseEvent);
+            const dateCopy = new Date(current);
+            eventCopy.date = formatDateJapanese(dateCopy);
+            eventCopy.eventDate = formatISODate(dateCopy);
+            eventCopy.isRecurring = true;
+            eventCopy.recurringPattern = dateStr;
+            eventCopy.id = `${baseEvent.id}_${formatISODate(dateCopy)}`;
+            expandedEvents.push(eventCopy);
+          }
+          current.setDate(current.getDate() + 1);
+        }
+      }
+    }
+  }
+
+  // 「毎月25日」のようなパターン
+  else if (dateStr.match(/毎月(\d{1,2})日/)) {
+    const dayMatch = dateStr.match(/毎月(\d{1,2})日/);
+    const day = parseInt(dayMatch[1]);
+
+    for (let year = startDate.getFullYear(); year <= endDate.getFullYear(); year++) {
+      const startMonth = (year === startDate.getFullYear()) ? startDate.getMonth() : 0;
+      const endMonth = (year === endDate.getFullYear()) ? endDate.getMonth() : 11;
+
+      for (let month = startMonth; month <= endMonth; month++) {
+        const targetDate = new Date(year, month, day);
+        // その月に該当日が存在するかチェック（例：2月30日は存在しない）
+        if (targetDate.getMonth() === month) {
+          const eventCopy = Object.assign({}, baseEvent);
+          eventCopy.date = formatDateJapanese(targetDate);
+          eventCopy.eventDate = formatISODate(targetDate);
+          eventCopy.isRecurring = true;
+          eventCopy.recurringPattern = dateStr;
+          eventCopy.id = `${baseEvent.id}_${formatISODate(targetDate)}`;
+          expandedEvents.push(eventCopy);
+        }
+      }
+    }
+  }
+
+  // パターンにマッチしない場合は、元のイベントを1つだけ返す
+  if (expandedEvents.length === 0) {
+    baseEvent.eventDate = getNextRecurringDate(baseEvent.date);
+    baseEvent.isRecurring = true;
+    baseEvent.recurringPattern = dateStr;
+    baseEvent.status = '定期開催';
+    expandedEvents.push(baseEvent);
+  }
+
+  return expandedEvents;
+}
+
+// 曜日名から曜日番号を取得（日曜=0, 月曜=1, ...）
+function getDayOfWeekNumber(dayName) {
+  const dayMap = {
+    '日': 0, '月': 1, '火': 2, '水': 3,
+    '木': 4, '金': 5, '土': 6
+  };
+  return dayMap[dayName] !== undefined ? dayMap[dayName] : -1;
+}
+
+// 指定月の第N週の指定曜日を取得
+function getNthWeekday(year, month, dayOfWeek, weekNum) {
+  const firstDay = new Date(year, month, 1);
+  const firstDayOfWeek = firstDay.getDay();
+
+  // 最初の該当曜日を見つける
+  let daysUntilTarget = (dayOfWeek - firstDayOfWeek + 7) % 7;
+  let targetDate = 1 + daysUntilTarget + (weekNum - 1) * 7;
+
+  // 月内に存在するかチェック
+  const result = new Date(year, month, targetDate);
+  if (result.getMonth() === month) {
+    return result;
+  }
+  return null;
+}
+
+// 日付フォーマット: "10/25(土)"
+function formatDateJapanese(date) {
+  const weekdays = ['日', '月', '火', '水', '木', '金', '土'];
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const weekday = weekdays[date.getDay()];
+  return `${month}/${day}(${weekday})`;
+}
+
+// ISO形式の日付: "2025-10-25"
+function formatISODate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+// ===========================
+// 既存の関数（変更なし）
+// ===========================
 
 function parseEventDate(dateStr) {
   if (!dateStr) return '';
@@ -227,6 +401,12 @@ function testAPI() {
     console.log('最初のイベント:', data.events[0]);
     console.log('ASHITAKAイベント数:', data.stats.byOrganizer.ASHITAKA);
     console.log('その他イベント数:', data.stats.byOrganizer['その他']);
+    console.log('定期開催イベント数:', data.stats.byType.recurring);
+    console.log('単発イベント数:', data.stats.byType.oneTime);
+
+    // 定期開催イベントの例を表示
+    const recurringExamples = data.events.filter(e => e.isRecurring).slice(0, 3);
+    console.log('定期開催イベントの例:', recurringExamples);
   }
   console.log('レスポンス:', data);
   return data;
@@ -252,6 +432,29 @@ function testOrganizer() {
     const color = fontColors[i][2];
     console.log(`行${i+1}: ${eventName} -> 色: ${color}`);
   }
+}
+
+// 定期開催イベント展開のテスト
+function testRecurringExpansion() {
+  console.log('=== 定期開催イベント展開テスト ===');
+
+  const testEvents = [
+    { date: '毎月第4金曜', name: 'テストイベント1' },
+    { date: '毎週金曜', name: 'テストイベント2' },
+    { date: '毎月25日', name: 'テストイベント3' }
+  ];
+
+  testEvents.forEach(event => {
+    console.log(`\n元のイベント: ${event.date} - ${event.name}`);
+    const expanded = expandRecurringEvent(event);
+    console.log(`展開後: ${expanded.length}件`);
+    if (expanded.length > 0) {
+      console.log('最初の3件:');
+      expanded.slice(0, 3).forEach(e => {
+        console.log(`  - ${e.date} (${e.eventDate})`);
+      });
+    }
+  });
 }
 
 // ===========================
