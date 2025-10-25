@@ -1,0 +1,22 @@
+{
+  "name": "apop-dance-calendar-bot",
+  "version": "1.0.0",
+  "description": "APOP Dance Calendar - 週次イベント投稿Bot",
+  "type": "module",
+  "scripts": {
+    "test:weekly": "node scripts/weekly-events-summary.js",
+    "dev": "node scripts/weekly-events-summary.js"
+  },
+  "keywords": [
+    "apop",
+    "dance",
+    "events",
+    "calendar",
+    "automation"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "node-fetch": "^3.3.2"
+  }
+}

@@ -2,7 +2,7 @@
 
 全国のAPOPダンスイベント情報を一元管理・検索できるWebアプリケーション
 
-🔗 **Live Demo**: [https://apop-dance.netlify.app/](https://apop-dance.netlify.app/)
+🔗 **Live Demo**: [https://apop-dance.netlify.app](https://apop-dance.netlify.app)
 
 ## 📌 概要
 
