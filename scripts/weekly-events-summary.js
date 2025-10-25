@@ -5,6 +5,7 @@
 
 import fetch from 'node-fetch';
 import twitter from 'twitter-text';
+import nodemailer from 'nodemailer';
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbzfgpo0Yp6rgYVvaxdoDGh9BcD2LPV5g616VkN1kbBbhlYcOdn3TiPMFFhPG5UsIea8/exec';
 
@@ -90,6 +91,11 @@ async function main() {
         // TODO: GitHub Issueに投稿する処理
         // await createGitHubIssue(tweets.join('\n\n---\n\n'));
 
+        // メール送信
+        if (tweets.length > 0) {
+            await sendEmail(tweets[0]);
+        }
+
     } catch (error) {
         console.error('❌ エラー発生:', error);
         process.exit(1);
@@ -169,6 +175,57 @@ function generateSummaryTweet(events, eventsByRegion, monthStr) {
     const tweet = header + eventText + url;
 
     return tweet;
+}
+
+/**
+ * メール送信関数（Gmail SMTP経由）
+ */
+async function sendEmail(tweetContent) {
+    // 環境変数チェック
+    const gmailUser = process.env.GMAIL_USER;
+    const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
+    const recipientEmail = process.env.RECIPIENT_EMAIL;
+
+    if (!gmailUser || !gmailAppPassword || !recipientEmail) {
+        console.log('\n⚠️  メール送信をスキップ: 環境変数が設定されていません');
+        console.log('   必要な環境変数: GMAIL_USER, GMAIL_APP_PASSWORD, RECIPIENT_EMAIL');
+        return;
+    }
+
+    console.log('\n=== メール送信 ===');
+    console.log(`送信元: ${gmailUser}`);
+    console.log(`送信先: ${recipientEmail}`);
+
+    try {
+        // Gmail SMTPトランスポーターを作成
+        const transporter = nodemailer.createTransport({
+            service: 'gmail',
+            auth: {
+                user: gmailUser,
+                pass: gmailAppPassword
+            }
+        });
+
+        // メール送信日時
+        const today = new Date();
+        const dateStr = `${today.getMonth() + 1}月${today.getDate()}日`;
+
+        // メール内容
+        const mailOptions = {
+            from: gmailUser,
+            to: recipientEmail,
+            subject: `【APOP Dance Calendar】今後1ヶ月のイベント（${dateStr}更新）`,
+            text: tweetContent
+        };
+
+        // メール送信
+        const info = await transporter.sendMail(mailOptions);
+        console.log('✓ メール送信成功:', info.messageId);
+
+    } catch (error) {
+        console.error('❌ メール送信エラー:', error.message);
+        // メール送信失敗してもスクリプトは続行
+    }
 }
 
 // 実行
