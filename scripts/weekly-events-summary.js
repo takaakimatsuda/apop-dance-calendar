@@ -4,6 +4,7 @@
 // ===========================
 
 import fetch from 'node-fetch';
+import twitter from 'twitter-text';
 
 const API_URL = 'https://script.google.com/macros/s/AKfycbzfgpo0Yp6rgYVvaxdoDGh9BcD2LPV5g616VkN1kbBbhlYcOdn3TiPMFFhPG5UsIea8/exec';
 
@@ -67,7 +68,8 @@ async function main() {
                 console.log(`【${index + 1}/${tweets.length}】`);
             }
             console.log(tweet);
-            console.log(`\n文字数: ${tweet.length}/280文字`);
+            const tweetLength = twitter.parseTweet(tweet).weightedLength;
+            console.log(`\n文字数: ${tweetLength}/280文字 (JavaScript: ${tweet.length}文字)`);
             console.log('---\n');
         });
 
@@ -103,82 +105,70 @@ function generateTweets(events, eventsByRegion) {
 
     // イベントがない場合
     if (events.length === 0) {
-        return [`【今後1ヶ月のイベント】\n${monthStr}現在、今後1ヶ月の登録イベントはありません。\n\n最新情報はこちら👇\nhttps://apop-dance.netlify.app`];
+        return [`【今後1ヶ月のイベント】\n\n現在、登録イベントはありません。\n\n詳細👇\nhttps://apop-dance.netlify.app`];
     }
 
-    const tweets = [];
-
-    // メインツイート：サマリー
-    const summaryTweet = generateSummaryTweet(events, eventsByRegion, monthStr);
-    tweets.push(summaryTweet);
-
-    // イベントが多い場合は、詳細を追加ツイートで投稿
-    if (events.length > 8) {
-        const detailTweets = generateDetailTweets(events);
-        tweets.push(...detailTweets);
-    }
-
-    return tweets;
+    // 通常の場合
+    const tweet = generateSummaryTweet(events, eventsByRegion, monthStr);
+    return [tweet];
 }
 
 /**
- * サマリーツイートを生成（URLを保護しながら280文字制限）
+ * サマリーツイートを生成（280文字制限対応・Twitter文字数カウント使用）
  */
 function generateSummaryTweet(events, eventsByRegion, monthStr) {
-    const header = `【今後1ヶ月のイベント】\n\n`;
-    const footer = `\n詳細👇\nhttps://apop-dance.netlify.app`;
-    const limit = 280;
+    // 固定パーツ
+    const header = '【今後1ヶ月のイベント】\n\n';
+    const url = '\n詳細👇\nhttps://apop-dance.netlify.app';
+    const CHAR_LIMIT = 280; // Xの文字数制限（無料アカウント）
 
-    let eventList = '';
-    let includedCount = 0;
+    // イベントを詰め込む
+    let eventText = '';
 
-    // イベントを1件ずつ追加していく
-    for (const event of events) {
+    for (let i = 0; i < events.length; i++) {
+        const event = events[i];
         const date = new Date(event.eventDate);
-        const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
-        const eventLine = `📍 ${dateStr} ${event.prefecture} ${event.name}\n`;
+        const month = date.getMonth() + 1;
+        const day = date.getDate();
 
-        // 追加してもlimit内に収まるかチェック
-        const testText = header + eventList + eventLine + footer;
+        // 都道府県名を短縮（都府県を削除）
+        const pref = event.prefecture.replace('都', '').replace('府', '').replace('県', '');
 
-        if (testText.length <= limit) {
-            eventList += eventLine;
-            includedCount++;
+        // イベント名（そのまま使用、長すぎる場合のみ短縮）
+        let eventName = event.name;
+
+        // 1行のフォーマット: 「📍 MM/DD 都道府県 イベント名\n」
+        const line = `📍 ${month}/${day} ${pref} ${eventName}\n`;
+
+        // Twitter文字数カウントで次の行を追加できるか確認
+        const testTweet = header + eventText + line + url;
+        const tweetLength = twitter.parseTweet(testTweet).weightedLength;
+
+        if (tweetLength <= CHAR_LIMIT) {
+            eventText += line;
         } else {
-            // 入らない場合は「…」を追加して終了
-            eventList += '…\n';
+            // イベント名を短縮して再トライ
+            if (eventName.length > 10) {
+                eventName = eventName.substring(0, 9) + '…';
+                const shorterLine = `📍 ${month}/${day} ${pref} ${eventName}\n`;
+                const shorterTestTweet = header + eventText + shorterLine + url;
+                const shorterTweetLength = twitter.parseTweet(shorterTestTweet).weightedLength;
+
+                if (shorterTweetLength <= CHAR_LIMIT) {
+                    eventText += shorterLine;
+                    continue;
+                }
+            }
+
+            // それでも入らない場合は終了
             break;
         }
     }
 
-    return header + eventList + footer;
-}
+    // 最終的なツイート
+    const tweet = header + eventText + url;
 
-/**
- * 詳細ツイート（リプライ用）を生成
- */
-function generateDetailTweets(events) {
-    const detailTweets = [];
-    const eventsPerTweet = 8;
-
-    for (let i = 0; i < events.length; i += eventsPerTweet) {
-        const chunk = events.slice(i, i + eventsPerTweet);
-        let text = '【イベント詳細】\n\n';
-
-        chunk.forEach(event => {
-            const date = new Date(event.eventDate);
-            const dateStr = `${date.getMonth() + 1}/${date.getDate()}`;
-            text += `📍 ${dateStr} ${event.prefecture} ${event.name}\n`;
-        });
-
-        if (i + eventsPerTweet < events.length) {
-            text += '\n続く...';
-        }
-
-        detailTweets.push(text);
-    }
-
-    return detailTweets;
+    return tweet;
 }
 
 // 実行
