@@ -390,6 +390,17 @@
             background-color: #e64a19;
         }
 
+        /* 今日の日付をハイライト */
+        .calendar-day.today {
+            background-color: rgba(33, 150, 243, 0.15);
+            border: 2px solid #2196F3;
+        }
+
+        .calendar-day.today .calendar-day-number {
+            color: #2196F3;
+            font-weight: 700;
+        }
+
         .calendar-navigation {
             display: flex;
             justify-content: center;
@@ -556,6 +567,14 @@
                         <input type="text" class="filter-input" id="keyword-filter" placeholder="イベント名、会場名で検索">
                     </div>
                     <div class="filter-group">
+                        <label class="filter-label">開始日</label>
+                        <input type="date" class="filter-input" id="date-start-filter" lang="ja">
+                    </div>
+                    <div class="filter-group">
+                        <label class="filter-label">終了日</label>
+                        <input type="date" class="filter-input" id="date-end-filter" lang="ja">
+                    </div>
+                    <div class="filter-group">
                         <label class="filter-label">
                             <input type="checkbox" id="show-past-events" style="margin-right: 8px;">
                             過去のイベントを表示
@@ -653,7 +672,7 @@
             });
 
             // フィルターの自動適用
-            ['region-filter', 'prefecture-filter', 'content-filter', 'organizer-filter', 'show-past-events'].forEach(id => {
+            ['region-filter', 'prefecture-filter', 'content-filter', 'organizer-filter', 'show-past-events', 'date-start-filter', 'date-end-filter'].forEach(id => {
                 document.getElementById(id).addEventListener('change', applyFilters);
             });
         }
@@ -719,6 +738,8 @@
             const organizer = document.getElementById('organizer-filter').value;
             const keyword = document.getElementById('keyword-filter').value.toLowerCase();
             const showPastEvents = document.getElementById('show-past-events').checked;
+            const startDate = document.getElementById('date-start-filter').value;
+            const endDate = document.getElementById('date-end-filter').value;
 
             const today = new Date();
             today.setHours(0, 0, 0, 0);
@@ -740,7 +761,23 @@
                     matchDate = eventDate >= today;
                 }
 
-                return matchRegion && matchPrefecture && matchContent && matchOrganizer && matchKeyword && matchDate;
+                // 日付範囲フィルタリング
+                let matchDateRange = true;
+                if ((startDate || endDate) && event.eventDate) {
+                    const eventDate = new Date(event.eventDate);
+
+                    if (startDate) {
+                        const filterStartDate = new Date(startDate);
+                        matchDateRange = matchDateRange && eventDate >= filterStartDate;
+                    }
+
+                    if (endDate) {
+                        const filterEndDate = new Date(endDate);
+                        matchDateRange = matchDateRange && eventDate <= filterEndDate;
+                    }
+                }
+
+                return matchRegion && matchPrefecture && matchContent && matchOrganizer && matchKeyword && matchDate && matchDateRange;
             });
 
             displayEvents();
@@ -753,6 +790,8 @@
             document.getElementById('content-filter').value = '';
             document.getElementById('organizer-filter').value = '';
             document.getElementById('keyword-filter').value = '';
+            document.getElementById('date-start-filter').value = '';
+            document.getElementById('date-end-filter').value = '';
             document.getElementById('show-past-events').checked = false;
 
             filteredEvents = [...allEvents];
@@ -845,13 +884,19 @@
         // カレンダー表示
         function displayEventsCalendar() {
             const calendarGrid = document.getElementById('calendar-grid');
-            const year = currentCalendarDate.getFullYear();
-            const month = currentCalendarDate.getMonth();
+            const calendarYear = currentCalendarDate.getFullYear();
+            const calendarMonth = currentCalendarDate.getMonth();
+
+            // 今日の日付を取得（比較用）
+            const today = new Date();
+            const todayYear = today.getFullYear();
+            const todayMonth = today.getMonth();
+            const todayDate = today.getDate();
 
             // 月ラベルを更新
             const monthLabel = document.getElementById('calendar-month-label');
             if (monthLabel) {
-                monthLabel.textContent = `${year}年${month + 1}月`;
+                monthLabel.textContent = `${calendarYear}年${calendarMonth + 1}月`;
             }
 
             // カレンダーのヘッダー
@@ -861,8 +906,8 @@
             ).join('');
 
             // 月の最初の日と最後の日
-            const firstDay = new Date(year, month, 1);
-            const lastDay = new Date(year, month + 1, 0);
+            const firstDay = new Date(calendarYear, calendarMonth, 1);
+            const lastDay = new Date(calendarYear, calendarMonth + 1, 0);
             const startDate = new Date(firstDay);
             // 月初の曜日分だけ前の日付に戻す（日曜始まりのカレンダー）
             startDate.setDate(startDate.getDate() - firstDay.getDay());
@@ -878,17 +923,23 @@
 
             // 各日付のセルを作成
             calendarDays.forEach(date => {
-                // ローカル日付をYYYY-MM-DD形式に変換（toISOStringを使わない）
-                const year = date.getFullYear();
-                const month = String(date.getMonth() + 1).padStart(2, '0');
-                const day = String(date.getDate()).padStart(2, '0');
-                const dateStr = `${year}-${month}-${day}`;
+                // ローカルタイムゾーンでの日付を取得（UTC問題を修正）
+                const cellYear = date.getFullYear();
+                const cellMonth = date.getMonth();
+                const cellDay = date.getDate();
+                const monthStr = String(cellMonth + 1).padStart(2, '0');
+                const dayStr = String(cellDay).padStart(2, '0');
+                const dateStr = `${cellYear}-${monthStr}-${dayStr}`;
                 const dayEvents = filteredEvents.filter(event => event.eventDate === dateStr);
-                const isCurrentMonth = date.getMonth() === currentCalendarDate.getMonth();
+                const isCurrentMonth = cellMonth === calendarMonth;
+
+                // 今日の日付かどうかを判定
+                const isToday = (cellYear === todayYear) && (cellMonth === todayMonth) && (cellDay === todayDate);
+                const todayClass = isToday ? 'today' : '';
 
                 calendarHTML += `
-                    <div class="calendar-day" style="opacity: ${isCurrentMonth ? 1 : 0.3}">
-                        <div class="calendar-day-number">${date.getDate()}</div>
+                    <div class="calendar-day ${todayClass}" style="opacity: ${isCurrentMonth ? 1 : 0.3}">
+                        <div class="calendar-day-number">${cellDay}</div>
                         ${dayEvents.map(event =>
                             `<div class="calendar-event ${!isValidUrl(event.twitter) ? 'no-url' : ''}"
                                  ${isValidUrl(event.twitter) ? `onclick="openEventLink('${event.twitter}')"` : ''}

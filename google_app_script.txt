@@ -1,0 +1,356 @@
+// ===========================
+// APOP Dance Calendar - Google Apps Script
+// JSONP対応版（CORS問題解決）+ オーガナイザー情報追加版
+// ===========================
+
+function doGet(e) {
+  try {
+    // スプレッドシートからデータを取得
+    const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+    const dataRange = sheet.getDataRange();
+    const data = dataRange.getValues();
+
+    // C列（イベント名）の文字色を取得
+    const fontColors = dataRange.getFontColors();
+
+    const events = [];
+
+    // 4行目から実際のイベントデータが始まる
+    for (let i = 3; i < data.length; i++) {
+      const row = data[i];
+
+      // B列（日時）とC列（イベント名）が空の場合はスキップ
+      if (!row[1] || row[1] === '' || row[1] === '定期イベント') continue;
+      if (!row[2] || row[2] === '' || row[2] === 'イベント名') continue;
+
+      // C列（イベント名、インデックス2）の文字色を確認
+      const textColor = fontColors[i][2]; // i行目のC列の色
+
+      // 赤色の判定（複数の赤色コードに対応）
+      const isRed = textColor === '#ff0000' ||
+                    textColor === '#FF0000' ||
+                    textColor === '#cc0000' ||
+                    textColor === '#CC0000' ||
+                    textColor === '#ff0000ff' || // 透明度付きの場合
+                    textColor === '#FF0000FF' ||
+                    textColor.toLowerCase().includes('ff0000') ||
+                    textColor.toLowerCase().includes('cc0000');
+
+      const event = {
+        date: row[1] || '',  // B列：日時
+        eventDate: parseEventDate(row[1]), // 日時から日付を生成
+        name: row[2] || '',  // C列：イベント名
+        prefecture: row[3] || '', // D列：都道府県
+        venue: row[4] || '', // E列：会場
+        mainContent: row[5] || '', // F列：メインコンテンツ
+        subContent: row[6] || '', // G列：サブコンテンツ
+        status: row[7] || '', // H列：エントリー状況
+        twitter: row[8] || '', // I列：X垢
+        region: getRegion(row[3]), // 都道府県から地域を判定
+        organizer: isRed ? 'ASHITAKA' : 'その他', // オーガナイザー情報を追加
+        id: `event_${i}`,
+        rowNumber: i + 1
+      };
+
+      // 定期イベントの判定
+      if (event.date && event.date.includes('毎月')) {
+        event.isRecurring = true;
+        event.status = '定期開催';
+        event.eventDate = getNextRecurringDate(event.date);
+      }
+
+      events.push(event);
+    }
+
+    // イベントを日付順にソート
+    events.sort((a, b) => {
+      const dateA = new Date(a.eventDate || '2099-12-31');
+      const dateB = new Date(b.eventDate || '2099-12-31');
+      return dateA - dateB;
+    });
+
+    // オーガナイザー別の統計情報も追加
+    const ashitakaEvents = events.filter(e => e.organizer === 'ASHITAKA');
+    const otherEvents = events.filter(e => e.organizer === 'その他');
+
+    const stats = {
+      total: events.length,
+      upcoming: events.filter(e => {
+        const eventDate = new Date(e.eventDate);
+        return !isNaN(eventDate) && eventDate >= new Date();
+      }).length,
+      byOrganizer: {
+        ASHITAKA: ashitakaEvents.length,
+        その他: otherEvents.length
+      },
+      lastUpdated: new Date().toISOString()
+    };
+
+    const response = {
+      success: true,
+      stats: stats,
+      events: events
+    };
+
+    // JSONPコールバック対応
+    const jsonString = JSON.stringify(response);
+    const callback = e.parameter.callback;
+
+    if (callback) {
+      // JSONP形式で返す（CORS回避）
+      return ContentService
+        .createTextOutput(callback + '(' + jsonString + ')')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    } else {
+      // 通常のJSON形式
+      return ContentService
+        .createTextOutput(jsonString)
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+
+  } catch (error) {
+    const errorResponse = {
+      success: false,
+      error: error.toString(),
+      message: 'データの取得に失敗しました。シートの設定を確認してください。'
+    };
+
+    const jsonString = JSON.stringify(errorResponse);
+    const callback = e.parameter.callback;
+
+    if (callback) {
+      return ContentService
+        .createTextOutput(callback + '(' + jsonString + ')')
+        .setMimeType(ContentService.MimeType.JAVASCRIPT);
+    } else {
+      return ContentService
+        .createTextOutput(jsonString)
+        .setMimeType(ContentService.MimeType.JSON);
+    }
+  }
+}
+
+function parseEventDate(dateStr) {
+  if (!dateStr) return '';
+
+  // "9/13(土)" 形式を "2025-09-13" に変換
+  const match = dateStr.toString().match(/(\d{1,2})\/(\d{1,2})/);
+  if (match) {
+    const currentYear = new Date().getFullYear();
+    const month = match[1].padStart(2, '0');
+    const day = match[2].padStart(2, '0');
+
+    // 月が過去の場合は来年と判断
+    const currentMonth = new Date().getMonth() + 1;
+    const eventMonth = parseInt(match[1]);
+    const year = eventMonth < currentMonth ? currentYear + 1 : currentYear;
+
+    return `${year}-${month}-${day}`;
+  }
+
+  return '';
+}
+
+function getNextRecurringDate(recurringInfo) {
+  const today = new Date();
+
+  if (recurringInfo.includes('毎月第')) {
+    const match = recurringInfo.match(/毎月第(\d)(.曜)/);
+    if (match) {
+      const weekNumber = parseInt(match[1]);
+      const dayName = match[2];
+      const dayMap = { '日': 0, '月': 1, '火': 2, '水': 3, '木': 4, '金': 5, '土': 6 };
+      const targetDay = dayMap[dayName];
+
+      if (targetDay === undefined) return '';
+
+      const currentMonth = today.getMonth();
+      const currentYear = today.getFullYear();
+      const firstDay = new Date(currentYear, currentMonth, 1);
+      const firstDayOfWeek = firstDay.getDay();
+
+      let targetDate = 1 + (targetDay - firstDayOfWeek + 7) % 7 + (weekNumber - 1) * 7;
+      let resultDate = new Date(currentYear, currentMonth, targetDate);
+
+      if (resultDate < today) {
+        const nextMonth = currentMonth + 1;
+        const nextYear = nextMonth > 11 ? currentYear + 1 : currentYear;
+        const actualMonth = nextMonth % 12;
+        const nextFirstDay = new Date(nextYear, actualMonth, 1);
+        const nextFirstDayOfWeek = nextFirstDay.getDay();
+        targetDate = 1 + (targetDay - nextFirstDayOfWeek + 7) % 7 + (weekNumber - 1) * 7;
+        resultDate = new Date(nextYear, actualMonth, targetDate);
+      }
+
+      return resultDate.toISOString().split('T')[0];
+    }
+  }
+
+  return '';
+}
+
+function getRegion(prefecture) {
+  if (!prefecture) return '';
+
+  const regionMap = {
+    '北海道': ['北海道'],
+    '東北': ['青森', '岩手', '宮城', '秋田', '山形', '福島'],
+    '関東': ['茨城', '栃木', '群馬', '埼玉', '千葉', '東京', '神奈川'],
+    '中部': ['新潟', '富山', '石川', '福井', '山梨', '長野', '岐阜', '静岡', '愛知'],
+    '関西': ['三重', '滋賀', '京都', '大阪', '兵庫', '奈良', '和歌山'],
+    '中国': ['鳥取', '島根', '岡山', '広島', '山口'],
+    '四国': ['徳島', '香川', '愛媛', '高知'],
+    '九州': ['福岡', '佐賀', '長崎', '熊本', '大分', '宮崎', '鹿児島', '沖縄']
+  };
+
+  for (const [region, prefectures] of Object.entries(regionMap)) {
+    for (const pref of prefectures) {
+      if (prefecture && prefecture.includes(pref)) {
+        return region;
+      }
+    }
+  }
+
+  return '不明';
+}
+
+// ===========================
+// テスト関数（動作確認用）
+// ===========================
+
+// 通常のJSON形式でテスト
+function testAPI() {
+  const result = doGet({parameter: {}});
+  const data = JSON.parse(result.getContent());
+  console.log('イベント数:', data.events ? data.events.length : 0);
+  if (data.events && data.events.length > 0) {
+    console.log('最初のイベント:', data.events[0]);
+    console.log('ASHITAKAイベント数:', data.stats.byOrganizer.ASHITAKA);
+    console.log('その他イベント数:', data.stats.byOrganizer['その他']);
+  }
+  console.log('レスポンス:', data);
+  return data;
+}
+
+// JSONP形式でテスト
+function testJSONP() {
+  const result = doGet({parameter: {callback: 'myCallback'}});
+  const content = result.getContent();
+  console.log('JSONP形式:', content.substring(0, 100) + '...');
+  return content;
+}
+
+// オーガナイザー情報のテスト
+function testOrganizer() {
+  const sheet = SpreadsheetApp.getActiveSpreadsheet().getSheets()[0];
+  const dataRange = sheet.getDataRange();
+  const fontColors = dataRange.getFontColors();
+
+  console.log('=== 文字色チェック ===');
+  for (let i = 3; i < Math.min(10, fontColors.length); i++) {
+    const eventName = dataRange.getValues()[i][2];
+    const color = fontColors[i][2];
+    console.log(`行${i+1}: ${eventName} -> 色: ${color}`);
+  }
+}
+
+// ===========================
+// 静的JSON生成機能（オプション）
+// GitHub Actionsを使わない場合の代替手段
+// ===========================
+
+function generateStaticJSON() {
+  try {
+    console.log('静的JSON生成開始...');
+
+    // 通常のJSON形式でデータ取得
+    const result = doGet({parameter: {}});
+    const jsonData = result.getContent();
+
+    // Google Driveに保存
+    saveToGoogleDrive(jsonData);
+
+    console.log('静的JSON生成完了');
+
+  } catch (error) {
+    console.error('静的JSON生成エラー:', error);
+  }
+}
+
+function saveToGoogleDrive(jsonContent) {
+  const fileName = 'apop-events.json';
+
+  // 既存ファイルを検索
+  const files = DriveApp.getFilesByName(fileName);
+
+  if (files.hasNext()) {
+    // 既存ファイルを更新
+    const file = files.next();
+    file.setContent(jsonContent);
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    console.log('ファイル更新:', file.getUrl());
+    console.log('ダウンロードURL:', file.getDownloadUrl());
+    console.log('直接アクセスURL:', 'https://drive.google.com/uc?id=' + file.getId() + '&export=download');
+  } else {
+    // 新規ファイル作成
+    const file = DriveApp.createFile(fileName, jsonContent, 'application/json');
+    file.setSharing(DriveApp.Access.ANYONE_WITH_LINK, DriveApp.Permission.VIEW);
+    console.log('ファイル作成:', file.getUrl());
+    console.log('ダウンロードURL:', file.getDownloadUrl());
+    console.log('直接アクセスURL:', 'https://drive.google.com/uc?id=' + file.getId() + '&export=download');
+  }
+}
+
+// タイマートリガーを設定（初回のみ実行）
+function setupDailyTriggers() {
+  // 既存のトリガーを削除
+  const triggers = ScriptApp.getProjectTriggers();
+  triggers.forEach(trigger => {
+    if (trigger.getHandlerFunction() === 'generateStaticJSON') {
+      ScriptApp.deleteTrigger(trigger);
+    }
+  });
+
+  // 朝9時のトリガー
+  ScriptApp.newTrigger('generateStaticJSON')
+    .timeBased()
+    .atHour(9)
+    .everyDays(1)
+    .create();
+
+  // 夕方18時のトリガー
+  ScriptApp.newTrigger('generateStaticJSON')
+    .timeBased()
+    .atHour(18)
+    .everyDays(1)
+    .create();
+
+  console.log('トリガー設定完了: 毎日9時と18時に実行');
+}
+
+// 手動実行用：今すぐJSONを生成
+function manualGenerateJSON() {
+  generateStaticJSON();
+  SpreadsheetApp.getActiveSpreadsheet().toast('JSONファイルを更新しました', '完了', 3);
+}
+
+// ===========================
+// デプロイ情報表示
+// ===========================
+
+function getDeploymentInfo() {
+  const url = ScriptApp.getService().getUrl();
+  console.log('=== デプロイ情報 ===');
+  console.log('Web App URL:', url);
+  console.log('');
+  console.log('通常のJSON形式でアクセス:');
+  console.log(url);
+  console.log('');
+  console.log('JSONP形式でアクセス（CORS回避）:');
+  console.log(url + '?callback=handleEvents');
+  console.log('');
+  console.log('HTMLで使用する例:');
+  console.log('<script src="' + url + '?callback=handleEvents"></script>');
+
+  return url;
+}
