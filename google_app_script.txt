@@ -156,10 +156,10 @@ function expandRecurringEvent(baseEvent) {
   const dateStr = baseEvent.date.toString();
   const expandedEvents = [];
 
-  // 展開する期間（前後1年）
+  // 展開する期間（当月と翌月の2ヶ月分）
   const today = new Date();
-  const startDate = new Date(today.getFullYear() - 1, today.getMonth(), 1);
-  const endDate = new Date(today.getFullYear() + 1, today.getMonth() + 1, 0);
+  const startDate = new Date(today.getFullYear(), today.getMonth(), 1);
+  const endDate = new Date(today.getFullYear(), today.getMonth() + 2, 0);
 
   // 「毎月第4金曜」のようなパターンを解析
   if (dateStr.match(/毎月第[1-5][日月火水木金土]曜/)) {
