@@ -91,9 +91,9 @@ async function main() {
         // TODO: GitHub Issueに投稿する処理
         // await createGitHubIssue(tweets.join('\n\n---\n\n'));
 
-        // メール送信
+        // メール送信（全ツイートを結合）
         if (tweets.length > 0) {
-            await sendEmail(tweets[0]);
+            await sendEmail(tweets);
         }
 
     } catch (error) {
@@ -103,7 +103,7 @@ async function main() {
 }
 
 /**
- * ツイート文を生成（280文字制限に対応）
+ * ツイート文を生成（280文字制限に対応、複数ツイート対応）
  */
 function generateTweets(events, eventsByRegion) {
     const today = new Date();
@@ -114,73 +114,170 @@ function generateTweets(events, eventsByRegion) {
         return [`【今後1ヶ月のイベント】\n\n現在、登録イベントはありません。\n\n詳細👇\nhttps://apop-dance.netlify.app`];
     }
 
-    // 通常の場合
-    const tweet = generateSummaryTweet(events, eventsByRegion, monthStr);
-    return [tweet];
+    // 全イベントを複数ツイートに分割
+    return generateMultipleTweets(events);
 }
 
 /**
- * サマリーツイートを生成（280文字制限対応・Twitter文字数カウント使用）
+ * 複数ツイートを生成（全イベントを含むまで分割）
  */
-function generateSummaryTweet(events, eventsByRegion, monthStr) {
-    // 固定パーツ
+function generateMultipleTweets(events) {
+    const CHAR_LIMIT = 280;
+
+    // まず1投稿で全て入るか試す
+    const singleTweet = buildTweet(events, 0, events.length, true, true);
+    const singleTweetLength = twitter.parseTweet(singleTweet).weightedLength;
+    if (singleTweetLength <= CHAR_LIMIT) {
+        return [singleTweet];
+    }
+
+    // 複数投稿に分割
+    const tweetData = []; // {startIndex, endIndex, includeHeader, includeUrl, shortenNames}
+    let currentEventIndex = 0;
+
+    while (currentEventIndex < events.length) {
+        const isFirstTweet = tweetData.length === 0;
+        const isLastEvent = currentEventIndex === events.length - 1;
+        const includeHeader = isFirstTweet;
+
+        // 残りイベントが全て最後のツイートに入るかチェック
+        const remainingEvents = events.length - currentEventIndex;
+        let includeUrl = false;
+        let eventCount = 0;
+        let shortenNames = false;
+
+        // 残りイベント全てをURLと一緒に入れられるか試す
+        const testWithUrl = buildTweet(events, currentEventIndex, events.length, includeHeader, true, false);
+        const testWithUrlLength = twitter.parseTweet(testWithUrl).weightedLength;
+        if (testWithUrlLength <= CHAR_LIMIT) {
+            // 全て入る場合
+            includeUrl = true;
+            eventCount = remainingEvents;
+        } else {
+            // 短縮版で試す
+            const testWithUrlShortened = buildTweet(events, currentEventIndex, events.length, includeHeader, true, true);
+            const testWithUrlShortenedLength = twitter.parseTweet(testWithUrlShortened).weightedLength;
+            if (testWithUrlShortenedLength <= CHAR_LIMIT) {
+                includeUrl = true;
+                eventCount = remainingEvents;
+                shortenNames = true;
+            } else {
+                // 全ては入らないので、URLなしで詰められるだけ詰める
+                for (let i = currentEventIndex; i < events.length; i++) {
+                    const testTweet = buildTweet(events, currentEventIndex, i + 1, includeHeader, false, false);
+
+                    if (twitter.parseTweet(testTweet).weightedLength <= CHAR_LIMIT) {
+                        eventCount = i - currentEventIndex + 1;
+                    } else {
+                        // イベント名を短縮して再トライ
+                        const testTweetShortened = buildTweet(events, currentEventIndex, i + 1, includeHeader, false, true);
+                        if (twitter.parseTweet(testTweetShortened).weightedLength <= CHAR_LIMIT) {
+                            eventCount = i - currentEventIndex + 1;
+                            shortenNames = true;
+                        } else {
+                            break;
+                        }
+                    }
+                }
+
+                if (eventCount === 0) {
+                    // 1つも入らない場合、強制的に1イベントを短縮して追加
+                    eventCount = 1;
+                    shortenNames = true;
+                }
+            }
+        }
+
+        tweetData.push({
+            startIndex: currentEventIndex,
+            endIndex: currentEventIndex + eventCount,
+            includeHeader: includeHeader,
+            includeUrl: includeUrl,
+            shortenNames: shortenNames
+        });
+
+        currentEventIndex += eventCount;
+    }
+
+    // 最後のツイートにURLが含まれているか確認
+    if (tweetData.length > 0 && !tweetData[tweetData.length - 1].includeUrl) {
+        // 最後のツイートを修正してURLを含める
+        const lastTweet = tweetData[tweetData.length - 1];
+
+        // URLを含めた場合の文字数をチェック
+        const testWithUrl = buildTweet(events, lastTweet.startIndex, lastTweet.endIndex, lastTweet.includeHeader, true, lastTweet.shortenNames);
+        const testWithUrlLength = twitter.parseTweet(testWithUrl).weightedLength;
+
+        if (testWithUrlLength <= CHAR_LIMIT) {
+            // URLを含めても収まる
+            lastTweet.includeUrl = true;
+        } else {
+            // URLを含めると超える場合、イベントを減らして調整
+            // 最後のツイートから一部イベントを減らす
+            let adjustedEndIndex = lastTweet.endIndex - 1;
+            while (adjustedEndIndex > lastTweet.startIndex) {
+                const adjusted = buildTweet(events, lastTweet.startIndex, adjustedEndIndex, lastTweet.includeHeader, false, lastTweet.shortenNames);
+                if (twitter.parseTweet(adjusted).weightedLength <= CHAR_LIMIT) {
+                    break;
+                }
+                adjustedEndIndex--;
+            }
+
+            lastTweet.endIndex = adjustedEndIndex;
+
+            // 残りイベント+URLの新しいツイートを追加
+            tweetData.push({
+                startIndex: adjustedEndIndex,
+                endIndex: events.length,
+                includeHeader: false,
+                includeUrl: true,
+                shortenNames: false
+            });
+        }
+    }
+
+    // ツイートテキストを生成
+    const tweets = tweetData.map(data => {
+        return buildTweet(events, data.startIndex, data.endIndex, data.includeHeader, data.includeUrl, data.shortenNames);
+    });
+
+    return tweets;
+}
+
+/**
+ * 指定範囲のイベントからツイートテキストを構築
+ */
+function buildTweet(events, startIndex, endIndex, includeHeader, includeUrl, shortenNames = false) {
     const header = '【今後1ヶ月のイベント】\n\n';
     const url = '\n詳細👇\nhttps://apop-dance.netlify.app';
-    const CHAR_LIMIT = 280; // Xの文字数制限（無料アカウント）
 
-    // イベントを詰め込む
     let eventText = '';
 
-    for (let i = 0; i < events.length; i++) {
+    for (let i = startIndex; i < endIndex && i < events.length; i++) {
         const event = events[i];
         const date = new Date(event.eventDate);
         const month = date.getMonth() + 1;
         const day = date.getDate();
 
-        // 都道府県名を短縮（都府県を削除）
+        // 都道府県名を短縮
         const pref = event.prefecture.replace('都', '').replace('府', '').replace('県', '');
 
-        // イベント名（そのまま使用、長すぎる場合のみ短縮）
+        // イベント名（必要に応じて短縮）
         let eventName = event.name;
-
-        // 1行のフォーマット: 「📍 MM/DD 都道府県 イベント名\n」
-        const line = `📍 ${month}/${day} ${pref} ${eventName}\n`;
-
-        // Twitter文字数カウントで次の行を追加できるか確認
-        const testTweet = header + eventText + line + url;
-        const tweetLength = twitter.parseTweet(testTweet).weightedLength;
-
-        if (tweetLength <= CHAR_LIMIT) {
-            eventText += line;
-        } else {
-            // イベント名を短縮して再トライ
-            if (eventName.length > 10) {
-                eventName = eventName.substring(0, 9) + '…';
-                const shorterLine = `📍 ${month}/${day} ${pref} ${eventName}\n`;
-                const shorterTestTweet = header + eventText + shorterLine + url;
-                const shorterTweetLength = twitter.parseTweet(shorterTestTweet).weightedLength;
-
-                if (shorterTweetLength <= CHAR_LIMIT) {
-                    eventText += shorterLine;
-                    continue;
-                }
-            }
-
-            // それでも入らない場合は終了
-            break;
+        if (shortenNames && eventName.length > 10) {
+            eventName = eventName.substring(0, 9) + '…';
         }
+
+        eventText += `📍 ${month}/${day} ${pref} ${eventName}\n`;
     }
 
-    // 最終的なツイート
-    const tweet = header + eventText + url;
-
-    return tweet;
+    return (includeHeader ? header : '') + eventText + (includeUrl ? url : '');
 }
 
 /**
  * メール送信関数（Gmail SMTP経由）
  */
-async function sendEmail(tweetContent) {
+async function sendEmail(tweets) {
     // 環境変数チェック
     const gmailUser = process.env.GMAIL_USER;
     const gmailAppPassword = process.env.GMAIL_APP_PASSWORD;
@@ -195,6 +292,7 @@ async function sendEmail(tweetContent) {
     console.log('\n=== メール送信 ===');
     console.log(`送信元: ${gmailUser}`);
     console.log(`送信先: ${recipientEmail}`);
+    console.log(`投稿数: ${tweets.length}`);
 
     try {
         // Gmail SMTPトランスポーターを作成
@@ -210,12 +308,15 @@ async function sendEmail(tweetContent) {
         const today = new Date();
         const dateStr = `${today.getMonth() + 1}月${today.getDate()}日`;
 
+        // 全ツイートを結合（改行で区切る）
+        const emailContent = tweets.join('\n\n---\n\n');
+
         // メール内容
         const mailOptions = {
             from: gmailUser,
             to: recipientEmail,
             subject: `【APOP Dance Calendar】今後1ヶ月のイベント（${dateStr}更新）`,
-            text: tweetContent
+            text: emailContent
         };
 
         // メール送信
