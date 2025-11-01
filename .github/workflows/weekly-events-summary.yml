@@ -8,7 +8,7 @@ on:
     - cron: '0 0 * * 5'
 
   # 手動実行も可能（テスト用）
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   post-summary:
