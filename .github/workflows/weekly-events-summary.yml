@@ -2,10 +2,10 @@ name: Weekly Events Summary
 
 on:
   schedule:
-    # 毎週金曜 JST 9:00 に実行 (UTC 0:00 金曜)
+    # 毎週金曜 JST 18:00 に実行 (UTC 9:00 金曜)
     # cron: '分 時 日 月 曜日'
     # 曜日: 0=日曜, 1=月曜, ..., 5=金曜
-    - cron: '0 0 * * 5'
+    - cron: '0 9 * * 5'
 
   # 手動実行も可能（テスト用）
   workflow_dispatch: {}
