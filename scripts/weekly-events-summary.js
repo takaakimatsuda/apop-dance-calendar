@@ -3,6 +3,7 @@
 // 毎週金曜18時に今後1ヶ月のイベントをまとめて投稿
 // ===========================
 
+import 'dotenv/config';
 import fetch from 'node-fetch';
 import twitter from 'twitter-text';
 import nodemailer from 'nodemailer';
@@ -259,6 +260,9 @@ function buildTweet(events, startIndex, endIndex, includeHeader, includeUrl, sho
         const month = date.getMonth() + 1;
         const day = date.getDate();
 
+        // 曜日を取得
+        const dayOfWeek = ['日', '月', '火', '水', '木', '金', '土'][date.getDay()];
+
         // 都道府県名を短縮
         const pref = event.prefecture.replace('都', '').replace('府', '').replace('県', '');
 
@@ -268,7 +272,7 @@ function buildTweet(events, startIndex, endIndex, includeHeader, includeUrl, sho
             eventName = eventName.substring(0, 9) + '…';
         }
 
-        eventText += `📍 ${month}/${day} ${pref} ${eventName}\n`;
+        eventText += `📍 ${month}/${day}(${dayOfWeek}) ${pref} ${eventName}\n`;
     }
 
     return (includeHeader ? header : '') + eventText + (includeUrl ? url : '');
