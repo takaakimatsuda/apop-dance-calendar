@@ -10,11 +10,6 @@ on:
   # 手動実行も可能（テスト用）
   workflow_dispatch: {}
 
-  # 一時的なトリガー（ワークフローを登録するため）
-  push:
-    branches:
-      - main
-
 jobs:
   post-summary:
     runs-on: ubuntu-latest
