@@ -133,7 +133,7 @@ function generateMultipleTweets(events) {
     }
 
     // 複数投稿に分割
-    const tweetData = []; // {startIndex, endIndex, includeHeader, includeUrl, shortenNames}
+    const tweetData = []; // {startIndex, endIndex, includeHeader, includeUrl}
     let currentEventIndex = 0;
 
     while (currentEventIndex < events.length) {
@@ -145,47 +145,29 @@ function generateMultipleTweets(events) {
         const remainingEvents = events.length - currentEventIndex;
         let includeUrl = false;
         let eventCount = 0;
-        let shortenNames = false;
 
         // 残りイベント全てをURLと一緒に入れられるか試す
-        const testWithUrl = buildTweet(events, currentEventIndex, events.length, includeHeader, true, false);
+        const testWithUrl = buildTweet(events, currentEventIndex, events.length, includeHeader, true);
         const testWithUrlLength = twitter.parseTweet(testWithUrl).weightedLength;
         if (testWithUrlLength <= CHAR_LIMIT) {
             // 全て入る場合
             includeUrl = true;
             eventCount = remainingEvents;
         } else {
-            // 短縮版で試す
-            const testWithUrlShortened = buildTweet(events, currentEventIndex, events.length, includeHeader, true, true);
-            const testWithUrlShortenedLength = twitter.parseTweet(testWithUrlShortened).weightedLength;
-            if (testWithUrlShortenedLength <= CHAR_LIMIT) {
-                includeUrl = true;
-                eventCount = remainingEvents;
-                shortenNames = true;
-            } else {
-                // 全ては入らないので、URLなしで詰められるだけ詰める
-                for (let i = currentEventIndex; i < events.length; i++) {
-                    const testTweet = buildTweet(events, currentEventIndex, i + 1, includeHeader, false, false);
+            // 全ては入らないので、URLなしで詰められるだけ詰める
+            for (let i = currentEventIndex; i < events.length; i++) {
+                const testTweet = buildTweet(events, currentEventIndex, i + 1, includeHeader, false);
 
-                    if (twitter.parseTweet(testTweet).weightedLength <= CHAR_LIMIT) {
-                        eventCount = i - currentEventIndex + 1;
-                    } else {
-                        // イベント名を短縮して再トライ
-                        const testTweetShortened = buildTweet(events, currentEventIndex, i + 1, includeHeader, false, true);
-                        if (twitter.parseTweet(testTweetShortened).weightedLength <= CHAR_LIMIT) {
-                            eventCount = i - currentEventIndex + 1;
-                            shortenNames = true;
-                        } else {
-                            break;
-                        }
-                    }
+                if (twitter.parseTweet(testTweet).weightedLength <= CHAR_LIMIT) {
+                    eventCount = i - currentEventIndex + 1;
+                } else {
+                    break;
                 }
+            }
 
-                if (eventCount === 0) {
-                    // 1つも入らない場合、強制的に1イベントを短縮して追加
-                    eventCount = 1;
-                    shortenNames = true;
-                }
+            if (eventCount === 0) {
+                // 1つも入らない場合、強制的に1イベントを追加
+                eventCount = 1;
             }
         }
 
@@ -193,8 +175,7 @@ function generateMultipleTweets(events) {
             startIndex: currentEventIndex,
             endIndex: currentEventIndex + eventCount,
             includeHeader: includeHeader,
-            includeUrl: includeUrl,
-            shortenNames: shortenNames
+            includeUrl: includeUrl
         });
 
         currentEventIndex += eventCount;
@@ -206,7 +187,7 @@ function generateMultipleTweets(events) {
         const lastTweet = tweetData[tweetData.length - 1];
 
         // URLを含めた場合の文字数をチェック
-        const testWithUrl = buildTweet(events, lastTweet.startIndex, lastTweet.endIndex, lastTweet.includeHeader, true, lastTweet.shortenNames);
+        const testWithUrl = buildTweet(events, lastTweet.startIndex, lastTweet.endIndex, lastTweet.includeHeader, true);
         const testWithUrlLength = twitter.parseTweet(testWithUrl).weightedLength;
 
         if (testWithUrlLength <= CHAR_LIMIT) {
@@ -217,7 +198,7 @@ function generateMultipleTweets(events) {
             // 最後のツイートから一部イベントを減らす
             let adjustedEndIndex = lastTweet.endIndex - 1;
             while (adjustedEndIndex > lastTweet.startIndex) {
-                const adjusted = buildTweet(events, lastTweet.startIndex, adjustedEndIndex, lastTweet.includeHeader, false, lastTweet.shortenNames);
+                const adjusted = buildTweet(events, lastTweet.startIndex, adjustedEndIndex, lastTweet.includeHeader, false);
                 if (twitter.parseTweet(adjusted).weightedLength <= CHAR_LIMIT) {
                     break;
                 }
@@ -231,15 +212,14 @@ function generateMultipleTweets(events) {
                 startIndex: adjustedEndIndex,
                 endIndex: events.length,
                 includeHeader: false,
-                includeUrl: true,
-                shortenNames: false
+                includeUrl: true
             });
         }
     }
 
     // ツイートテキストを生成
     const tweets = tweetData.map(data => {
-        return buildTweet(events, data.startIndex, data.endIndex, data.includeHeader, data.includeUrl, data.shortenNames);
+        return buildTweet(events, data.startIndex, data.endIndex, data.includeHeader, data.includeUrl);
     });
 
     return tweets;
@@ -248,7 +228,7 @@ function generateMultipleTweets(events) {
 /**
  * 指定範囲のイベントからツイートテキストを構築
  */
-function buildTweet(events, startIndex, endIndex, includeHeader, includeUrl, shortenNames = false) {
+function buildTweet(events, startIndex, endIndex, includeHeader, includeUrl) {
     const header = '【今後1ヶ月のイベント】\n\n';
     const url = '\n詳細👇\nhttps://apop-dance.netlify.app';
 
@@ -266,11 +246,8 @@ function buildTweet(events, startIndex, endIndex, includeHeader, includeUrl, sho
         // 都道府県名を短縮
         const pref = event.prefecture.replace('都', '').replace('府', '').replace('県', '');
 
-        // イベント名（必要に応じて短縮）
-        let eventName = event.name;
-        if (shortenNames && eventName.length > 10) {
-            eventName = eventName.substring(0, 9) + '…';
-        }
+        // イベント名を完全に表示
+        const eventName = event.name;
 
         eventText += `📍 ${month}/${day}(${dayOfWeek}) ${pref} ${eventName}\n`;
     }
