@@ -29,11 +29,25 @@ APOP Dance Calendarは、APOPダンスイベント情報を効率的に管理・
 - **URL検証機能**: 無効なURLへの遷移を防止
 - **リアルタイム更新**: Googleスプレッドシートの変更が即座に反映
 
-### 週次イベントまとめ（自動送信）
-- **メール自動送信**: 毎週金曜18時に今後1ヶ月のイベントをメール送信
-- **完全無料**: Gmail経由で無料送信
-- **簡単セットアップ**: 約5分で設定完了
+### 週次イベントまとめ（自動配信）
+
+#### X（Twitter）自動投稿
+- **配信時刻**: 毎週金曜18:00 JST
+- **配信内容**: 今後1ヶ月のイベント情報をスレッド形式で投稿
+- **投稿形式**: イベント件数に応じて可変数の投稿（各280文字以内）
+- **認証方式**: OAuth 1.0a
+- **使用API**: X API v2（Free Plan対応）
+
+#### メール自動送信
+- **配信時刻**: 毎週金曜9:00 JST
+- **配信内容**: 今後1ヶ月のイベント情報
+- **送信方式**: Gmail SMTP経由
 - 📧 **[セットアップガイド](./EMAIL_SETUP.md)**
+
+#### 特徴
+- **完全無料**: GitHub Actions + X API Free Plan / Gmail経由
+- **自動実行**: GitHub Actionsによるスケジュール実行
+- **手動実行**: GitHub Actionsから手動トリガーも可能
 
 ## 🏗️ 技術構成
 
@@ -54,6 +68,12 @@ APOP Dance Calendarは、APOPダンスイベント情報を効率的に管理・
 - **Netlify**: メインホスティング（自動デプロイ設定済み）
 - **GitHub Pages**: バックアップホスティング
 
+### 自動化システム
+- **GitHub Actions**: 週次イベント配信の自動実行
+- **Node.js**: メール送信・X投稿スクリプト実行環境
+- **twitter-api-v2**: X API v2クライアントライブラリ
+- **nodemailer**: メール送信ライブラリ
+
 ## 📊 データ構造
 
 ### イベントデータ
@@ -73,8 +93,62 @@ APOP Dance Calendarは、APOPダンスイベント情報を効率的に管理・
 }
 ```
 
+## 🚀 セットアップ（自動配信）
+
+### X自動投稿のセットアップ
+
+#### 1. X Developer Portalでアプリを作成
+1. [X Developer Portal](https://developer.twitter.com/) にアクセス
+2. アプリを作成（既存アプリがある場合はそれを使用）
+3. **User authentication settings** を設定
+   - App permissions: **Read and Write**
+   - Type of App: **Web App**
+   - Callback URI: 任意のURL（例：https://example.com）
+
+#### 2. 認証情報を取得
+1. **Keys and tokens** タブを開く
+2. **Consumer Keys** をコピー
+   - API Key → `X_CLIENT_ID`
+   - API Key Secret → `X_CLIENT_SECRET`
+3. **Access Token and Secret** を生成
+   - Access Token → `X_ACCESS_TOKEN`
+   - Access Token Secret → `X_ACCESS_TOKEN_SECRET`
+
+#### 3. GitHub Secretsに登録
+1. GitHubリポジトリの **Settings** → **Secrets and variables** → **Actions**
+2. **New repository secret** をクリックして、以下の4つを登録：
+   - `X_CLIENT_ID`
+   - `X_CLIENT_SECRET`
+   - `X_ACCESS_TOKEN`
+   - `X_ACCESS_TOKEN_SECRET`
+
+#### 4. 動作確認
+1. GitHubリポジトリの **Actions** タブを開く
+2. **週次イベントX投稿** ワークフローを選択
+3. **Run workflow** ボタンで手動実行
+4. 実行ログを確認して成功を確認
+5. Xアカウントに投稿されていることを確認
+
+#### 5. 自動実行
+設定完了後、毎週金曜18:00 JSTに自動でX投稿が実行されます。
+
+### ローカルでのテスト実行
+
+```bash
+# 依存パッケージをインストール
+npm install
+
+# .envファイルを作成（.env.exampleを参考）
+cp .env.example .env
+# .envファイルに認証情報を記入
+
+# X投稿テスト実行
+npm run post:weekly
+```
+
 ## ⚠️ 注意事項
 
 - イベント情報は随時更新されます
 - 最新情報は各イベント主催者のSNSをご確認ください
 - 本サイトは個人運営の非営利情報共有サイトです
+- X API Free Planでは月間1,500ツイートまで投稿可能（週1回の投稿で十分）
