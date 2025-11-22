@@ -75,7 +75,16 @@ export function selectNextEvent(allEvents, postedEvents) {
     return candidates[0];
   }
 
-  // すべて投稿済みまたはイベントなし
+  // すべて投稿済みの場合、1週間以内のイベントを繰り返し投稿
+  console.log('🔍 すべて投稿済み。繰り返し投稿を確認中...');
+
+  const repeatCandidates = filterEventsByDateRange(allEvents, 14);
+  if (repeatCandidates.length > 0) {
+    console.log(`🔄 2週間以内のイベント（${repeatCandidates.length}件）を再投稿します`);
+    const sorted = sortByDate(repeatCandidates);
+    return sorted[0];
+  }
+
   console.log('❌ 投稿可能なイベントがありません');
   return null;
 }
