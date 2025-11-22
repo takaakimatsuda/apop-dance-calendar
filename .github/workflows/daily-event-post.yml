@@ -1,0 +1,35 @@
+name: 毎日イベント投稿
+
+on:
+  # 毎日12:00 JST（UTC 3:00）に実行
+  schedule:
+    - cron: '0 3 * * *'
+
+  # 手動実行を有効化
+  workflow_dispatch:
+
+jobs:
+  post-to-x:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: リポジトリをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Node.js 20をセットアップ
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: 依存パッケージをインストール
+        run: npm install
+
+      - name: 毎日イベント投稿スクリプトを実行
+        env:
+          X_CLIENT_ID: ${{ secrets.X_CLIENT_ID }}
+          X_CLIENT_SECRET: ${{ secrets.X_CLIENT_SECRET }}
+          X_ACCESS_TOKEN: ${{ secrets.X_ACCESS_TOKEN }}
+          X_ACCESS_TOKEN_SECRET: ${{ secrets.X_ACCESS_TOKEN_SECRET }}
+          GIST_ID: ${{ secrets.GIST_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run post:daily

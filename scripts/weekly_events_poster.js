@@ -1,6 +1,6 @@
 // ===========================
 // APOP Dance Calendar - 週次イベントX投稿
-// 毎週金曜18時に今後1ヶ月のイベントをX（Twitter）にスレッド投稿
+// 毎週金曜18時に今後2週間のイベントをX（Twitter）にスレッド投稿
 // ===========================
 
 import 'dotenv/config';
@@ -26,21 +26,21 @@ async function main() {
 
         console.log(`✓ 全イベント数: ${data.events.length}件`);
 
-        // 2. 今日から1ヶ月後までの日付範囲を計算
+        // 2. 今日から2週間後までの日付範囲を計算
         const today = new Date();
         today.setHours(0, 0, 0, 0);
 
-        const oneMonthLater = new Date(today);
-        oneMonthLater.setMonth(oneMonthLater.getMonth() + 1);
+        const twoWeeksLater = new Date(today);
+        twoWeeksLater.setDate(twoWeeksLater.getDate() + 14);
 
-        console.log('対象期間:', today.toLocaleDateString('ja-JP'), '〜', oneMonthLater.toLocaleDateString('ja-JP'));
+        console.log('対象期間:', today.toLocaleDateString('ja-JP'), '〜', twoWeeksLater.toLocaleDateString('ja-JP'));
 
         // 3. 期間内のイベントをフィルタ
         const upcomingEvents = data.events.filter(event => {
             if (!event.eventDate) return false;
 
             const eventDate = new Date(event.eventDate);
-            return eventDate >= today && eventDate <= oneMonthLater;
+            return eventDate >= today && eventDate <= twoWeeksLater;
         });
 
         // 日付順にソート
@@ -221,7 +221,7 @@ function generateMultipleTweets(events) {
  * 指定範囲のイベントからツイートテキストを構築
  */
 function buildTweet(events, startIndex, endIndex, includeHeader, includeUrl) {
-    const header = '【今後1ヶ月のイベント】\n\n';
+    const header = '【今後2週間のイベント】\n\n';
     const url = '\n詳細👇\nhttps://apop-dance.netlify.app';
 
     let eventText = '';

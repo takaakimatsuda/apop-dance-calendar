@@ -5,7 +5,9 @@
   "type": "module",
   "scripts": {
     "test:weekly": "node scripts/weekly-events-summary.js",
+    "test:daily": "node scripts/daily_event_poster.js",
     "post:weekly": "node scripts/weekly_events_poster.js",
+    "post:daily": "node scripts/daily_event_poster.js",
     "dev": "node scripts/weekly-events-summary.js"
   },
   "keywords": [
@@ -18,6 +20,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
+    "@octokit/rest": "^20.0.0",
     "axios": "^1.13.2",
     "dotenv": "^17.2.3",
     "node-fetch": "^3.3.2",
