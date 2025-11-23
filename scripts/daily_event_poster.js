@@ -56,7 +56,7 @@ function getEventType(event) {
  * @returns {string} 短縮されたテキスト
  */
 function truncateText(text, maxLength) {
-  if (!text) return 'なし';
+  if (!text) return '';
   if (text.length <= maxLength) return text;
   return text.substring(0, maxLength - 1) + '…';
 }
@@ -73,19 +73,25 @@ function createTweetText(event) {
 
   // 可変部分の初期値
   let eventName = event.name || '';
-  let mainContent = event.mainContent || 'なし';
-  let subContent = event.subContent || 'なし';
+  let mainContent = event.mainContent;
+  let subContent = event.subContent;
+
+  // コンテンツ行を条件付きで構築
+  const contentLines = [];
+  if (mainContent) {
+    contentLines.push(`メインコンテンツ: ${mainContent}`);
+  }
+  if (subContent) {
+    contentLines.push(`サブコンテンツ: ${subContent}`);
+  }
+  const contentSection = contentLines.length > 0 ? '\n' + contentLines.join('\n') + '\n' : '';
 
   // 投稿テキストを組み立てて文字数をチェック
   let text = `🎪 ${eventType}イベント紹介
 
 📅 ${dateText}
 📍 ${event.prefecture}・${event.venue}
-🎵 ${eventName}
-
-メインコンテンツ: ${mainContent}
-サブコンテンツ: ${subContent}
-
+🎵 ${eventName}${contentSection}
 詳細はこちら👇
 ${eventUrl}`.trim();
 
@@ -100,17 +106,23 @@ ${eventUrl}`.trim();
   console.log(`⚠️ 文字数調整が必要: ${tweetLength} → 280`);
 
   // 優先度1: サブコンテンツを短縮
-  if (subContent !== 'なし' && subContent.length > 20) {
+  if (subContent && subContent.length > 20) {
     subContent = truncateText(subContent, 20);
+
+    const contentLines1 = [];
+    if (mainContent) {
+      contentLines1.push(`メインコンテンツ: ${mainContent}`);
+    }
+    if (subContent) {
+      contentLines1.push(`サブコンテンツ: ${subContent}`);
+    }
+    const contentSection1 = contentLines1.length > 0 ? '\n' + contentLines1.join('\n') + '\n' : '';
+
     text = `🎪 ${eventType}イベント紹介
 
 📅 ${dateText}
 📍 ${event.prefecture}・${event.venue}
-🎵 ${eventName}
-
-メインコンテンツ: ${mainContent}
-サブコンテンツ: ${subContent}
-
+🎵 ${eventName}${contentSection1}
 詳細はこちら👇
 ${eventUrl}`.trim();
 
@@ -122,17 +134,23 @@ ${eventUrl}`.trim();
   }
 
   // 優先度2: メインコンテンツを短縮
-  if (mainContent !== 'なし' && mainContent.length > 30) {
+  if (mainContent && mainContent.length > 30) {
     mainContent = truncateText(mainContent, 30);
+
+    const contentLines2 = [];
+    if (mainContent) {
+      contentLines2.push(`メインコンテンツ: ${mainContent}`);
+    }
+    if (subContent) {
+      contentLines2.push(`サブコンテンツ: ${subContent}`);
+    }
+    const contentSection2 = contentLines2.length > 0 ? '\n' + contentLines2.join('\n') + '\n' : '';
+
     text = `🎪 ${eventType}イベント紹介
 
 📅 ${dateText}
 📍 ${event.prefecture}・${event.venue}
-🎵 ${eventName}
-
-メインコンテンツ: ${mainContent}
-サブコンテンツ: ${subContent}
-
+🎵 ${eventName}${contentSection2}
 詳細はこちら👇
 ${eventUrl}`.trim();
 
@@ -146,15 +164,21 @@ ${eventUrl}`.trim();
   // 優先度3: イベント名を短縮（最後の手段）
   if (eventName.length > 20) {
     eventName = truncateText(eventName, 20);
+
+    const contentLines3 = [];
+    if (mainContent) {
+      contentLines3.push(`メインコンテンツ: ${mainContent}`);
+    }
+    if (subContent) {
+      contentLines3.push(`サブコンテンツ: ${subContent}`);
+    }
+    const contentSection3 = contentLines3.length > 0 ? '\n' + contentLines3.join('\n') + '\n' : '';
+
     text = `🎪 ${eventType}イベント紹介
 
 📅 ${dateText}
 📍 ${event.prefecture}・${event.venue}
-🎵 ${eventName}
-
-メインコンテンツ: ${mainContent}
-サブコンテンツ: ${subContent}
-
+🎵 ${eventName}${contentSection3}
 詳細はこちら👇
 ${eventUrl}`.trim();
 
