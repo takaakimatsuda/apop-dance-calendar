@@ -29,22 +29,38 @@ APOP Dance Calendarは、APOPダンスイベント情報を効率的に管理・
 - **URL検証機能**: 無効なURLへの遷移を防止
 - **リアルタイム更新**: Googleスプレッドシートの変更が即座に反映
 
-### 週次イベントまとめ（自動配信）
+### 自動配信機能
 
-#### X（Twitter）自動投稿
+#### 週次イベントまとめ
+
+**X（Twitter）自動投稿**
 - **配信時刻**: 毎週金曜18:00 JST
-- **配信内容**: 今後1ヶ月のイベント情報をスレッド形式で投稿
-- **投稿形式**: イベント件数に応じて可変数の投稿（各280文字以内）
+- **配信内容**: 今後2週間のイベント情報をスレッド形式で投稿
+- **投稿形式**: イベント件数に応じて可変数の投稿（各280文字以内、自動短縮対応）
 - **認証方式**: OAuth 1.0a
 - **使用API**: X API v2（Free Plan対応）
 
-#### メール自動送信
+**メール自動送信**
 - **配信時刻**: 毎週金曜9:00 JST
 - **配信内容**: 今後1ヶ月のイベント情報
 - **送信方式**: Gmail SMTP経由
 - 📧 **[セットアップガイド](./EMAIL_SETUP.md)**
 
-#### 特徴
+#### 毎日イベント投稿
+
+**X（Twitter）自動投稿**
+- **配信時刻**: 毎日12:00 JST
+- **配信内容**: 今後2週間以内のイベントを1日1件ずつ個別紹介
+- **投稿形式**: イベント詳細を含む単一投稿（280文字以内、自動短縮対応）
+- **投稿管理**: GitHub Gistで投稿済みイベントを追跡、重複回避
+- **再投稿**: すべてのイベントを投稿済みの場合、日程が近いものを再投稿
+
+**特徴**
+- **公平な配信**: 日付が近い順に未投稿イベントを自動選択
+- **重複回避**: Gistで投稿履歴を永続管理
+- **完全自動**: GitHub Actionsによる毎日自動実行
+
+#### 自動配信の特徴
 - **完全無料**: GitHub Actions + X API Free Plan / Gmail経由
 - **自動実行**: GitHub Actionsによるスケジュール実行
 - **手動実行**: GitHub Actionsから手動トリガーも可能
@@ -79,6 +95,7 @@ APOP Dance Calendarは、APOPダンスイベント情報を効率的に管理・
 ### イベントデータ
 ```javascript
 {
+  id: "unique-id",            // イベント識別子（投稿管理に使用）
   date: "9/13(土)",           // 日時
   eventDate: "2025-09-13",    // ISO形式の日付
   name: "イベント名",
@@ -95,7 +112,7 @@ APOP Dance Calendarは、APOPダンスイベント情報を効率的に管理・
 
 ## 🚀 セットアップ（自動配信）
 
-### X自動投稿のセットアップ
+### 週次イベントまとめのセットアップ
 
 #### 1. X Developer Portalでアプリを作成
 1. [X Developer Portal](https://developer.twitter.com/) にアクセス
@@ -145,6 +162,76 @@ cp .env.example .env
 # X投稿テスト実行
 npm run post:weekly
 ```
+
+### 毎日イベント投稿のセットアップ
+
+毎日投稿機能を利用するには、上記のX API認証情報に加えて、GitHub Gistによる投稿履歴管理が必要です。
+
+#### 1. GitHub Personal Access Tokenの取得
+
+1. GitHub設定ページ（[Personal Access Tokens](https://github.com/settings/tokens)）にアクセス
+2. **Generate new token (classic)** をクリック
+3. 以下のように設定：
+   - **Note**: `APOP Dance Calendar - Gist Access`
+   - **Expiration**: `No expiration` または任意の期限
+   - **Select scopes**: `gist` にチェック
+4. **Generate token** をクリック
+5. 表示されたトークンをコピー（後で使用するので保存しておく）
+
+#### 2. GitHub Gistの作成
+
+1. [GitHub Gist](https://gist.github.com/) にアクセス
+2. 以下のように設定：
+   - **Gist description**: `APOP Dance Calendar - Posted Events`
+   - **Filename**: `posted_events.json`
+   - **Content**: `[]`（空の配列）
+3. **Create public gist** または **Create secret gist** をクリック
+4. 作成されたGistのURLから **Gist ID** を取得
+   - URL例: `https://gist.github.com/username/1234567890abcdef1234567890abcdef`
+   - Gist ID: `1234567890abcdef1234567890abcdef`（URLの最後の部分）
+
+#### 3. GitHub Secretsに追加登録
+
+週次投稿用の4つに加えて、以下の2つを追加登録：
+
+1. GitHubリポジトリの **Settings** → **Secrets and variables** → **Actions**
+2. **New repository secret** をクリックして登録：
+   - `GITHUB_TOKEN`: 手順1で取得したPersonal Access Token
+   - `GIST_ID`: 手順2で取得したGist ID
+
+#### 4. 動作確認
+
+1. GitHubリポジトリの **Actions** タブを開く
+2. **毎日イベント投稿** ワークフローを選択
+3. **Run workflow** ボタンで手動実行
+4. 実行ログを確認して成功を確認
+5. Xアカウントに投稿されていることを確認
+6. Gistが更新されていることを確認（投稿済みイベントIDが記録される）
+
+#### 5. 自動実行
+
+設定完了後、毎日12:00 JSTに自動でX投稿が実行されます。
+
+## 🔄 GitHub Actions ワークフロー一覧
+
+| ワークフロー | 実行時刻（JST） | cron (UTC) | 説明 |
+|------------|---------------|------------|------|
+| Weekly Events Summary | 毎週金曜 9:00 | `0 0 * * 5` | 週次イベントまとめメール送信 |
+| 週次イベントX投稿 | 毎週金曜 18:00 | `0 9 * * 5` | 今後2週間のイベントをスレッド投稿 |
+| 毎日イベント投稿 | 毎日 12:00 | `0 3 * * *` | 個別イベントを1日1件紹介 |
+
+**Note**: GitHub ActionsはUTC時刻で実行されるため、JST（UTC+9）に変換して記載しています。
+
+## 💻 開発・テスト用コマンド
+
+| コマンド | 説明 |
+|---------|------|
+| `npm run test:weekly` | 週次イベントX投稿のテスト（投稿内容プレビューのみ、実際には投稿しない） |
+| `npm run test:daily` | 毎日イベント投稿のテスト（投稿内容プレビューのみ、実際には投稿しない） |
+| `npm run post:weekly` | 週次イベントをXに投稿（本番実行） |
+| `npm run post:daily` | 毎日イベントをXに投稿（本番実行） |
+
+**DRY RUNモード**: `test:*` コマンドは `DRY_RUN=true` 環境変数で実行され、投稿内容の確認のみを行います。実際のX投稿やGist更新は行われません。
 
 ## ⚠️ 注意事項
 
