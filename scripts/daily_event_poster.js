@@ -194,8 +194,14 @@ ${eventUrl}`.trim();
  */
 async function main() {
   try {
+    const isDryRun = process.env.DRY_RUN === 'true';
+
     console.log('=== 個別イベント投稿開始 ===\n');
     console.log('実行日時:', new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }));
+
+    if (isDryRun) {
+      console.log('🔍 DRY RUNモード: 投稿内容のプレビューのみ（実際には投稿しません）\n');
+    }
 
     // 環境変数チェック
     const requiredEnvVars = [
@@ -257,15 +263,22 @@ async function main() {
       return;
     }
 
-    // 5. X APIクライアント初期化
+    // 5. DRY RUNモードの場合はここで終了
+    if (isDryRun) {
+      console.log('\n✅ DRY RUNモード: プレビュー完了（実際には投稿していません）');
+      console.log('\n=== 処理完了 ===');
+      return;
+    }
+
+    // 6. X APIクライアント初期化
     console.log('\n🐦 X APIに投稿中...');
     const xClient = new XAPIClient();
 
-    // 6. ツイート投稿
+    // 7. ツイート投稿
     const tweetId = await xClient.postTweet(tweetText);
     console.log(`✅ 投稿成功! Tweet ID: ${tweetId}`);
 
-    // 7. Gist更新
+    // 8. Gist更新
     console.log('\n💾 投稿済みデータを更新中...');
     const postedEventData = {
       eventId: selectedEvent.id,

@@ -12,8 +12,14 @@ const API_URL = 'https://script.google.com/macros/s/AKfycbzfgpo0Yp6rgYVvaxdoDGh9
 
 async function main() {
     try {
+        const isDryRun = process.env.DRY_RUN === 'true';
+
         console.log('=== 週次イベントX投稿 ===');
         console.log('実行日時:', new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' }));
+
+        if (isDryRun) {
+            console.log('🔍 DRY RUNモード: 投稿内容のプレビューのみ（実際には投稿しません）\n');
+        }
 
         // 1. イベントデータを取得
         console.log('\nAPIからデータ取得中...');
@@ -79,11 +85,17 @@ async function main() {
             console.log(`${date.toLocaleDateString('ja-JP')} | ${event.prefecture.padEnd(6)} | ${event.name}`);
         });
 
-        // 8. X APIで投稿
+        // 8. DRY RUNモードの場合はここで終了
+        if (isDryRun) {
+            console.log('\n✅ DRY RUNモード: プレビュー完了（実際には投稿していません）');
+            return;
+        }
+
+        // 9. X APIで投稿
         const xClient = new XAPIClient();
         const result = await xClient.postThread(tweets);
 
-        // 9. 結果判定
+        // 10. 結果判定
         if (result.failed > 0) {
             throw new Error(`投稿に失敗しました（成功: ${result.success}, 失敗: ${result.failed}）`);
         }

@@ -4,8 +4,8 @@
   "description": "APOP Dance Calendar - 週次イベント投稿Bot",
   "type": "module",
   "scripts": {
-    "test:weekly": "node scripts/weekly-events-summary.js",
-    "test:daily": "node scripts/daily_event_poster.js",
+    "test:weekly": "DRY_RUN=true node scripts/weekly_events_poster.js",
+    "test:daily": "DRY_RUN=true node scripts/daily_event_poster.js",
     "post:weekly": "node scripts/weekly_events_poster.js",
     "post:daily": "node scripts/daily_event_poster.js",
     "dev": "node scripts/weekly-events-summary.js"
