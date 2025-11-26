@@ -48,7 +48,7 @@ function doGet(e) {
         twitter: row[8] || '', // I列：X垢
         region: getRegion(row[3]), // 都道府県から地域を判定
         organizer: isRed ? 'ASHITAKA' : 'その他', // オーガナイザー情報を追加
-        id: `event_${i}`,
+        id: `event_${i}`,  // 基本IDは行番号のみ（日付は後で付加）
         rowNumber: i + 1
       };
 
@@ -60,6 +60,8 @@ function doGet(e) {
         // 通常のイベント
         baseEvent.eventDate = parseEventDate(baseEvent.date);
         baseEvent.isRecurring = false;
+        // IDに日付を付加してユニーク化
+        baseEvent.id = `${baseEvent.id}_${baseEvent.eventDate}`;
         events.push(baseEvent);
       }
     }

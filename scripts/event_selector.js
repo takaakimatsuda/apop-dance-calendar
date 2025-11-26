@@ -31,8 +31,12 @@ export function filterEventsByDateRange(allEvents, daysAhead) {
  * @returns {Array} 未投稿のイベント
  */
 export function filterUnpostedEvents(events, postedEvents) {
-  const postedEventIds = postedEvents.map(p => p.eventId);
-  return events.filter(event => !postedEventIds.includes(event.id));
+  // eventId + eventDate の組み合わせでチェック（同じIDでも日付が異なれば別イベント）
+  const postedKeys = postedEvents.map(p => `${p.eventId}_${p.eventDate}`);
+  return events.filter(event => {
+    const key = `${event.id}_${event.eventDate}`;
+    return !postedKeys.includes(key);
+  });
 }
 
 /**

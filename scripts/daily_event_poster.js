@@ -210,7 +210,7 @@ async function main() {
       'X_ACCESS_TOKEN',
       'X_ACCESS_TOKEN_SECRET',
       'GIST_ID',
-      'GITHUB_TOKEN'
+      'GIST_TOKEN'
     ];
 
     const missingVars = requiredEnvVars.filter(v => !process.env[v]);
@@ -225,7 +225,7 @@ async function main() {
     console.log('\n📥 投稿済みデータを取得中...');
     const postedEvents = await fetchPostedEvents(
       process.env.GIST_ID,
-      process.env.GITHUB_TOKEN
+      process.env.GIST_TOKEN
     );
 
     // 3. 次に投稿するイベントを選択
@@ -290,7 +290,7 @@ async function main() {
 
     const updateSuccess = await updatePostedEvents(
       process.env.GIST_ID,
-      process.env.GITHUB_TOKEN,
+      process.env.GIST_TOKEN,
       postedEventData
     );
 
