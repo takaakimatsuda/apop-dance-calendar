@@ -41,12 +41,12 @@ function getEventType(event) {
   if (/バトル|battle|solo|ソロ|crew|2on|3on|4on|5on/i.test(combined)) {
     return 'バトル';
   } else if (/dj|アニクラ|パーティー|クラブ/i.test(combined)) {
-    return 'DJイベント';
+    return 'DJ';
   } else if (/ショウケース|ショーケース|showcase/i.test(combined)) {
     return 'ショウケース';
   }
 
-  return 'イベント';
+  return '';
 }
 
 /**
