@@ -31,11 +31,17 @@ export function filterEventsByDateRange(allEvents, daysAhead) {
  * @returns {Array} 未投稿のイベント
  */
 export function filterUnpostedEvents(events, postedEvents) {
-  // eventId + eventDate の組み合わせでチェック（同じIDでも日付が異なれば別イベント）
-  const postedKeys = postedEvents.map(p => `${p.eventId}_${p.eventDate}`);
+  // eventId + eventDate と eventName + eventDate の両方でチェック
+  // （スプレッドシートの行変更でeventIdが変わっても重複を検知できるようにする）
+  const postedByIdKeys = postedEvents.map(p => `${p.eventId}_${p.eventDate}`);
+  const postedByNameKeys = postedEvents.map(p => `${p.eventName}_${p.eventDate}`);
+
   return events.filter(event => {
-    const key = `${event.id}_${event.eventDate}`;
-    return !postedKeys.includes(key);
+    const idKey = `${event.id}_${event.eventDate}`;
+    const nameKey = `${event.name}_${event.eventDate}`;
+
+    // どちらかのキーでマッチしたら投稿済みとみなす
+    return !postedByIdKeys.includes(idKey) && !postedByNameKeys.includes(nameKey);
   });
 }
 
