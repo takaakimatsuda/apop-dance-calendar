@@ -22,7 +22,15 @@ jobs:
           node-version: '20'
 
       - name: 依存パッケージをインストール
+        id: npm-install
         run: npm install
+        continue-on-error: true
+
+      - name: 依存パッケージをインストール（リトライ）
+        if: steps.npm-install.outcome == 'failure'
+        run: |
+          sleep 30
+          npm install
 
       - name: 毎日イベント投稿スクリプトを実行
         env:

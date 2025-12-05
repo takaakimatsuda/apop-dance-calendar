@@ -24,7 +24,15 @@ jobs:
           node-version: '20'
 
       - name: 依存関係インストール
+        id: npm-install
         run: npm install
+        continue-on-error: true
+
+      - name: 依存関係インストール（リトライ）
+        if: steps.npm-install.outcome == 'failure'
+        run: |
+          sleep 30
+          npm install
 
       - name: 週次イベントまとめを生成・メール送信
         run: npm run test:weekly
